@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  Int      @id @default(autoincrement())
+  email               String   @unique
+  passwordHash        String
+  role                String   @default("user")
+  autoWebhookOnSubmit Int      @default(0)
+  createdAt           String?
+  layouts             Layout[]
+
+  @@map("users")
+}
+
+model Layout {
+  id             Int             @id @default(autoincrement())
+  userId         Int
+  name           String
+  slug           String          @unique
+  imagePath      String?
+  overlayConfig  String?
+  plots          String?
+  phaseInfo      String?
+  webhookUrl     String?
+  layoutKind     String          @default("plot")
+  building       String?
+  createdAt      String?
+  user           User            @relation(fields: [userId], references: [id])
+  leads          Lead[]
+  activityEvents ActivityEvent[]
+
+  @@map("layouts")
+}
+
+model Lead {
+  id                 Int      @id @default(autoincrement())
+  layoutId           Int
+  plotId             Int
+  customerName       String
+  contactNumber      String
+  metadata           String?
+  webhookDeliveredAt String?
+  webhookLastError   String?
+  unitId             String?
+  createdAt          String?
+  layout             Layout   @relation(fields: [layoutId], references: [id])
+
+  @@map("leads")
+}
+
+model ActivityEvent {
+  id        Int      @id @default(autoincrement())
+  layoutId  Int
+  sessionId String
+  eventType String
+  payload   String?
+  userAgent String?
+  createdAt String?
+  layout    Layout   @relation(fields: [layoutId], references: [id])
+
+  @@map("activity_events")
+}
