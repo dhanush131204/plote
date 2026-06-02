@@ -35,8 +35,13 @@ function corsOrigin(origin, callback) {
   return callback(null, false)
 }
 
+const { adminJs, adminRouter } = require('../admin/admin')
+
 app.use(cors({ origin: corsOrigin, credentials: true }))
 app.use(express.json())
+
+// Mount AdminJS dashboard
+app.use(adminJs.options.rootPath, adminRouter)
 
 app.use('/api/auth', authRoutes)
 app.use('/api/layouts', layoutsRoutes)
