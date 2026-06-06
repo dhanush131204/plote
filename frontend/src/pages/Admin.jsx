@@ -1,258 +1,172 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import {
-  useGetAdminUsersQuery,
   useGetAdminLeadsQuery,
-  useGetAdminActivityQuery,
-  useCreateAdminUserMutation,
-  useUpdateAdminUserMutation,
   usePushLeadWebhookMutation,
-} from '../api/apiSlice'
+  useUpdateAdminUserMutation,
+} from '../api/apiSlice';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function Admin() {
-  const navigate = useNavigate()
-  const { user, logout, refreshUser } = useAuth()
-  const [tab, setTab] = useState('users')
-  const [error, setError] = useState('')
+  const { user, refreshUser } = useAuth();
+  const location = useLocation();
+  const isSettings = location.pathname.includes('settings');
+  const [tab, setTab] = useState(isSettings ? 'settings' : 'leads');
+  const navigate = useNavigate();
 
-  const { data: users = [], isLoading: loadingUsers, error: errorUsers } = useGetAdminUsersQuery()
-  const { data: leadsData, isLoading: loadingLeads, error: errorLeads } = useGetAdminLeadsQuery(100)
-  const { data: eventsData, isLoading: loadingActivity, error: errorActivity, refetch: refetchActivity } = useGetAdminActivityQuery(200)
+  const { data: leadsData, isLoading: loadingLeads, error: errorLeads } = useGetAdminLeadsQuery(100);
+  const [pushWebhookTrigger] = usePushLeadWebhookMutation();
+  const [updateAdminUser] = useUpdateAdminUserMutation();
 
-  const [createAdminUser] = useCreateAdminUserMutation()
-  const [updateAdminUser] = useUpdateAdminUserMutation()
-  const [pushWebhookTrigger] = usePushLeadWebhookMutation()
-
-  const [newEmail, setNewEmail] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [newAutoWebhook, setNewAutoWebhook] = useState(false)
-
-  const [editUser, setEditUser] = useState(null)
-  const [editEmail, setEditEmail] = useState('')
-  const [editRole, setEditRole] = useState('user')
-  const [editAutoWebhook, setEditAutoWebhook] = useState(false)
-  const [editPassword, setEditPassword] = useState('')
-  const [editSaving, setEditSaving] = useState(false)
-
-  const leads = leadsData?.leads || []
-  const leadsTotal = leadsData?.total ?? 0
-  const events = eventsData?.events || []
+  const [error, setError] = useState('');
+  
+  // Settings state
+  const [editPassword, setEditPassword] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
-    const err = errorUsers || errorLeads || errorActivity
-    if (err) {
-      setError(err.data?.error || err.error || 'Failed to fetch admin data')
-    }
-  }, [errorUsers, errorLeads, errorActivity])
+    setTab(isSettings ? 'settings' : 'leads');
+  }, [isSettings]);
 
-  const handleCreateUser = async (e) => {
-    e.preventDefault()
-    setError('')
-    try {
-      await createAdminUser({
-        email: newEmail,
-        password: newPassword,
-        autoWebhookOnSubmit: newAutoWebhook,
-      }).unwrap()
-      setNewEmail('')
-      setNewPassword('')
-      setNewAutoWebhook(false)
-    } catch (err) {
-      setError(err.data?.error || err.message || 'Failed to create user')
+  useEffect(() => {
+    if (errorLeads) {
+      setError(errorLeads.data?.error || errorLeads.error || 'Failed to fetch admin data');
     }
-  }
+  }, [errorLeads]);
 
-  const openEditUser = (u) => {
-    setError('')
-    setEditUser(u)
-    setEditEmail(u.email)
-    setEditRole(u.role === 'admin' ? 'admin' : 'user')
-    setEditAutoWebhook(Boolean(u.autoWebhookOnSubmit))
-    setEditPassword('')
-  }
-
-  const closeEditUser = () => {
-    setEditUser(null)
-    setEditPassword('')
-  }
-
-  const handleSaveEdit = async (e) => {
-    e.preventDefault()
-    if (!editUser) return
-    if (editPassword.trim() && editPassword.trim().length < 6) {
-      setError('New password must be at least 6 characters')
-      return
-    }
-    setEditSaving(true)
-    setError('')
-    try {
-      const body = {
-        id: editUser.id,
-        email: editEmail.trim(),
-        role: editRole,
-        autoWebhookOnSubmit: editAutoWebhook,
-      }
-      if (editPassword.trim()) {
-        body.password = editPassword.trim()
-      }
-      await updateAdminUser(body).unwrap()
-      if (user?.id === editUser.id) {
-        await refreshUser()
-      }
-      closeEditUser()
-    } catch (err) {
-      setError(err.data?.error || err.message || 'Failed to update user')
-    } finally {
-      setEditSaving(false)
-    }
-  }
+  const leads = leadsData?.leads || [];
+  const leadsTotal = leadsData?.total ?? 0;
+  
+  const contactedCount = leads.filter(l => l.webhookDeliveredAt).length;
+  const newLeadsCount = leadsTotal - contactedCount;
 
   const pushLeadWebhook = async (leadId) => {
-    setError('')
+    setError('');
     try {
-      await pushWebhookTrigger(leadId).unwrap()
+      await pushWebhookTrigger(leadId).unwrap();
     } catch (err) {
-      setError(err.data?.error || err.message || 'Failed to push webhook')
+      setError(err.data?.error || err.message || 'Failed to push webhook');
     }
-  }
+  };
 
-  const loading = loadingUsers || loadingLeads || loadingActivity
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    if (editPassword.trim() && editPassword.trim().length < 6) {
+      setError('New password must be at least 6 characters');
+      return;
+    }
+    setEditSaving(true);
+    setError('');
+    try {
+      const body = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        autoWebhookOnSubmit: user.autoWebhookOnSubmit,
+      };
+      if (editPassword.trim()) {
+        body.password = editPassword.trim();
+      }
+      await updateAdminUser(body).unwrap();
+      await refreshUser();
+      setEditPassword('');
+      alert("Profile updated successfully.");
+    } catch (err) {
+      setError(err.data?.error || err.message || 'Failed to update profile');
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
-  if (loading) return <div className="app-loading">Loading…</div>
+  if (loadingLeads) return <div className="app-loading">Loading CRM...</div>;
 
   return (
-    <div className="app">
-      <header className="header">
-        <button type="button" onClick={() => navigate('/dashboard')} className="btn-secondary">
-          ← Dashboard
+    <div className="dashboard-container">
+      <div className="admin-header-tabs" style={{display: 'flex', gap: '1rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '1rem', marginBottom: '2rem'}}>
+        <button 
+          className={`btn-ghost ${tab === 'leads' ? 'active' : ''}`} 
+          style={{ fontWeight: tab === 'leads' ? '600' : '400', color: tab === 'leads' ? 'var(--color-accent)' : 'inherit' }}
+          onClick={() => { setTab('leads'); navigate('/admin'); }}
+        >
+          Leads CRM
         </button>
-        <h2 className="header-title">Admin</h2>
-        <div className="header-actions">
-          <span className="header-tagline" title={user?.email || ''}>
-            {user?.email}
-          </span>
-          <button type="button" onClick={logout} className="btn-ghost">
-            Log out
-          </button>
-        </div>
-      </header>
-      <main className="dashboard-main admin-main">
-        {error && <div className="dashboard-error">{error}</div>}
+        <button 
+          className={`btn-ghost ${tab === 'settings' ? 'active' : ''}`}
+          style={{ fontWeight: tab === 'settings' ? '600' : '400', color: tab === 'settings' ? 'var(--color-accent)' : 'inherit' }}
+          onClick={() => { setTab('settings'); navigate('/settings'); }}
+        >
+          Profile Settings
+        </button>
+      </div>
 
-        <nav className="admin-tabs" aria-label="Admin sections">
-          {['users', 'leads', 'activity'].map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={tab === t ? 'btn-primary' : 'btn-secondary'}
-              onClick={() => setTab(t)}
-            >
-              {t === 'users' ? 'Users' : t === 'leads' ? 'Leads' : 'Activity'}
-            </button>
-          ))}
-        </nav>
+      {error && <div className="dashboard-error">{error}</div>}
 
-        {tab === 'users' && (
-          <section className="admin-section">
-            <h1>Company users</h1>
-            <p className="admin-lede">Create accounts that can log in and manage layouts. Auto webhook sends CRM payloads on interest submit when enabled per user.</p>
-
-            <form className="admin-form" onSubmit={handleCreateUser}>
-              <h3>Create user</h3>
-              <label className="builder-field">
-                Email
-                <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} required />
-              </label>
-              <label className="builder-field">
-                Password
-                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} />
-              </label>
-              <label className="admin-checkbox">
-                <input type="checkbox" checked={newAutoWebhook} onChange={(e) => setNewAutoWebhook(e.target.checked)} />
-                Auto-send to layout webhook on interest submit
-              </label>
-              <button type="submit" className="btn-primary">
-                Create user
-              </button>
-            </form>
-
-            <div className="admin-table-wrap">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Auto webhook</th>
-                    <th>Created</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr key={u.id}>
-                      <td>{u.email}</td>
-                      <td>{u.role}</td>
-                      <td>{u.autoWebhookOnSubmit ? 'On' : 'Off'}</td>
-                      <td>{u.createdAt}</td>
-                      <td>
-                        <button type="button" className="btn-secondary btn-small" onClick={() => openEditUser(u)}>
-                          Edit
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {tab === 'leads' && (
+        <section className="crm-section">
+          <div className="welcome-banner" style={{marginBottom: '2rem'}}>
+            <div className="welcome-content">
+              <h1 className="welcome-title">Leads Pipeline</h1>
+              <p className="welcome-subtitle">Manage your incoming inquiries and contacts.</p>
             </div>
-          </section>
-        )}
+            <div className="welcome-stats">
+              <div className="stat-badge">
+                <span className="stat-value">{leadsTotal}</span>
+                <span className="stat-label">Total Leads</span>
+              </div>
+              <div className="stat-badge">
+                <span className="stat-value" style={{color: 'var(--color-booked)'}}>{newLeadsCount}</span>
+                <span className="stat-label">New</span>
+              </div>
+              <div className="stat-badge">
+                <span className="stat-value" style={{color: 'var(--color-available)'}}>{contactedCount}</span>
+                <span className="stat-label">Contacted</span>
+              </div>
+            </div>
+          </div>
 
-        {tab === 'leads' && (
-          <section className="admin-section">
-            <h1>Interest leads ({leadsTotal})</h1>
-            <p className="admin-lede">Push to webhook uses each layout&apos;s webhook URL. Delivery status is shown after auto or manual send.</p>
-            <div className="admin-table-wrap">
-              <table className="admin-table">
+          {leads.length === 0 ? (
+             <div className="empty-state-premium">
+                <div className="empty-illustration">📇</div>
+                <h3>No Leads Yet</h3>
+                <p>When buyers show interest in your projects, their details will appear here in your CRM.</p>
+             </div>
+          ) : (
+            <div className="admin-table-wrap" style={{background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden', border: '1px solid var(--color-border)'}}>
+              <table className="admin-table" style={{width: '100%', borderCollapse: 'collapse'}}>
                 <thead>
-                  <tr>
-                    <th>When</th>
-                    <th>Layout</th>
-                    <th>Plot / unit</th>
-                    <th>Floor</th>
-                    <th>Tower</th>
-                    <th>Name</th>
-                    <th>Phone</th>
-                    <th>Email</th>
-                    <th>Webhook</th>
-                    <th />
+                  <tr style={{background: 'var(--color-bg-wash)'}}>
+                    <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Date</th>
+                    <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Project</th>
+                    <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Unit / Plot</th>
+                    <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Contact Name</th>
+                    <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Phone / Email</th>
+                    <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Status</th>
+                    <th style={{padding: '1rem', textAlign: 'right', fontWeight: '600', color: 'var(--color-text-muted)'}}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {leads.map((l) => (
-                    <tr key={l.id}>
-                      <td>{l.createdAt}</td>
-                      <td>{l.layoutName}</td>
-                      <td>{l.unitId || l.plotId}</td>
-                      <td>{l.unitFloor ?? '—'}</td>
-                      <td>{l.unitTower ?? '—'}</td>
-                      <td>{l.customerName}</td>
-                      <td>{l.contactNumber}</td>
-                      <td>{l.customerEmail}</td>
-                      <td>
+                    <tr key={l.id} style={{borderTop: '1px solid var(--color-border)'}}>
+                      <td style={{padding: '1rem'}}>{new Date(l.createdAt).toLocaleDateString()}</td>
+                      <td style={{padding: '1rem', fontWeight: '500'}}>{l.layoutName}</td>
+                      <td style={{padding: '1rem'}}>{l.unitId || l.plotId} {l.unitTower ? `(${l.unitTower})` : ''}</td>
+                      <td style={{padding: '1rem', fontWeight: '500'}}>{l.customerName}</td>
+                      <td style={{padding: '1rem', color: 'var(--color-text-muted)', fontSize: '0.875rem'}}>
+                        <div>{l.contactNumber}</div>
+                        <div>{l.customerEmail}</div>
+                      </td>
+                      <td style={{padding: '1rem'}}>
                         {l.webhookDeliveredAt ? (
-                          <span title={l.webhookLastError || ''}>Sent {l.webhookDeliveredAt}</span>
+                          <span style={{background: 'var(--color-available)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '999px', fontSize: '0.75rem'}}>Contacted</span>
                         ) : l.webhookLastError ? (
-                          <span className="admin-error-inline" title={l.webhookLastError}>
-                            Failed
-                          </span>
+                          <span style={{background: 'var(--color-danger)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '999px', fontSize: '0.75rem'}}>Failed</span>
                         ) : (
-                          '—'
+                          <span style={{background: 'var(--color-booked)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '999px', fontSize: '0.75rem'}}>New</span>
                         )}
                       </td>
-                      <td>
-                        <button type="button" className="btn-secondary btn-small" onClick={() => pushLeadWebhook(l.id)}>
-                          Push webhook
+                      <td style={{padding: '1rem', textAlign: 'right'}}>
+                        <button type="button" className="btn-secondary" style={{padding: '0.4rem 0.75rem', fontSize: '0.8125rem'}} onClick={() => pushLeadWebhook(l.id)}>
+                          Push Webhook
                         </button>
                       </td>
                     </tr>
@@ -260,102 +174,43 @@ export default function Admin() {
                 </tbody>
               </table>
             </div>
-          </section>
-        )}
+          )}
+        </section>
+      )}
 
-        {tab === 'activity' && (
-          <section className="admin-section">
-            <h1>Public activity</h1>
-            <p className="admin-lede">Anonymous session events from the public map (browser session id in localStorage).</p>
-            <button type="button" className="btn-secondary admin-refresh" onClick={() => refetchActivity()}>
-              Refresh
-            </button>
-            <div className="admin-table-wrap">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>When</th>
-                    <th>Layout</th>
-                    <th>Session</th>
-                    <th>Event</th>
-                    <th>Payload</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.map((ev) => (
-                    <tr key={ev.id}>
-                      <td>{ev.createdAt}</td>
-                      <td>{ev.layoutId}</td>
-                      <td className="admin-cell-mono">{ev.sessionId?.slice(0, 8)}…</td>
-                      <td>{ev.eventType}</td>
-                      <td className="admin-cell-json">{ev.payload ? JSON.stringify(ev.payload) : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
-      </main>
-
-      {editUser && (
-        <div
-          className="admin-modal-backdrop"
-          role="presentation"
-          onClick={closeEditUser}
-          onKeyDown={(e) => e.key === 'Escape' && closeEditUser()}
-        >
-          <div
-            className="admin-modal"
-            role="dialog"
-            aria-labelledby="admin-edit-user-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="admin-edit-user-title">Edit user</h3>
-            <p className="admin-modal-sub">{editUser.email}</p>
-            <form onSubmit={handleSaveEdit}>
-              <label className="builder-field">
-                Email
-                <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} required autoComplete="off" />
-              </label>
-              <label className="builder-field">
-                Role
-                <select value={editRole} onChange={(e) => setEditRole(e.target.value)}>
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </label>
-              <label className="admin-checkbox">
-                <input
-                  type="checkbox"
-                  checked={editAutoWebhook}
-                  onChange={(e) => setEditAutoWebhook(e.target.checked)}
-                />
-                Auto-send to layout webhook on interest submit
-              </label>
-              <label className="builder-field">
-                New password <span className="admin-optional">(optional)</span>
-                <input
-                  type="password"
-                  value={editPassword}
-                  onChange={(e) => setEditPassword(e.target.value)}
+      {tab === 'settings' && (
+        <section className="settings-section">
+          <div className="section-header">
+            <h1 className="section-title">Profile Settings</h1>
+          </div>
+          <div style={{maxWidth: '600px', background: 'var(--color-surface)', padding: '2rem', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--color-border)'}}>
+            <form onSubmit={handleSaveProfile} style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
+              <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                <label style={{fontWeight: '600', fontSize: '0.875rem'}}>Email Address</label>
+                <input type="email" value={user?.email || ''} disabled style={{padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-bg-wash)', color: 'var(--color-text-muted)'}} />
+                <p style={{fontSize: '0.75rem', color: 'var(--color-text-muted)'}}>Email address cannot be changed.</p>
+              </div>
+              
+              <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                <label style={{fontWeight: '600', fontSize: '0.875rem'}}>New Password</label>
+                <input 
+                  type="password" 
+                  value={editPassword} 
+                  onChange={(e) => setEditPassword(e.target.value)} 
                   placeholder="Leave blank to keep current password"
-                  autoComplete="new-password"
+                  style={{padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)'}}
                 />
-              </label>
-              <p className="admin-modal-hint">You cannot remove the last administrator. Demoting yourself requires another admin account.</p>
-              <div className="admin-modal-actions">
-                <button type="button" className="btn-secondary" onClick={closeEditUser}>
-                  Cancel
-                </button>
+              </div>
+
+              <div style={{borderTop: '1px solid var(--color-border)', paddingTop: '1.5rem', display: 'flex', justifyContent: 'flex-end'}}>
                 <button type="submit" className="btn-primary" disabled={editSaving}>
-                  {editSaving ? 'Saving…' : 'Save changes'}
+                  {editSaving ? 'Saving Changes...' : 'Save Profile Settings'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </section>
       )}
     </div>
-  )
+  );
 }
