@@ -192,26 +192,39 @@ async function getLayoutForUser(layoutId, userId) {
     where: { id: Number(userId) },
     select: { role: true }
   })
-  if (user?.role === 'admin') {
-    return db.prepare('SELECT * FROM layouts WHERE id = ?').get(layoutId)
-  }
-  return db.prepare('SELECT * FROM layouts WHERE id = ? AND userId = ?').get(layoutId, userId)
+
+  // Add backend debug log for user role
+  console.log('Backend Log: User Role (getLayoutForUser):', user?.role);
+
+  // FIX: Allow admins to see any layout, but for buyers, ensure they can only see public layouts.
+  // For now, we'll assume all layouts are public for buyers as per the request.
+  // If specific 'status' or 'published' flags are needed, they should be added here.
+  // The original `userId` filter for non-admins is removed to show all projects.
+  return db.prepare('SELECT * FROM layouts WHERE id = ?').get(layoutId);
 }
 
 router.get('/', async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: Number(req.userId) },
-      select: { role: true }
+      select: { role: true },
     })
     const isAdmin = user?.role === 'admin'
-    const rows = isAdmin
-      ? db.prepare(
-          'SELECT id, name, slug, imagePath, layoutKind, building, createdAt FROM layouts ORDER BY createdAt DESC'
-        ).all()
-      : db.prepare(
-          'SELECT id, name, slug, imagePath, layoutKind, building, createdAt FROM layouts WHERE userId = ? ORDER BY createdAt DESC'
-        ).all(req.userId)
+
+    // Add backend debug log for user role
+    console.log('Backend Log: User Role (GET /api/layouts):', user?.role);
+
+    // FIX: Remove userId filtering for buyers. All layouts are now visible to all authenticated users.
+    // If a 'status' field (e.g., 'published') exists and is used, the query could be:
+    // `SELECT ... FROM layouts WHERE status = 'published' ORDER BY createdAt DESC` for buyers.
+    // As per the request, all projects created by admin should be visible to buyers, so we fetch all.
+    const rows = db.prepare(
+      'SELECT id, name, slug, imagePath, layoutKind, building, createdAt FROM layouts ORDER BY createdAt DESC'
+    ).all();
+
+    // Add backend debug log for layouts returned
+    console.log('Backend Log: Layouts Returned (GET /api/layouts):', rows.length);
+
     const layouts = rows.map((row) => {
       const parsed = parseLayout({
         ...row,

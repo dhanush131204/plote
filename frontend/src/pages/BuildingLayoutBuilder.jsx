@@ -400,9 +400,9 @@ export default function BuildingLayoutBuilder() {
   return (
     <div className="app">
       <header className="header">
-        <button type="button" onClick={() => navigate('/dashboard')} className="btn-secondary">
+        {/* <button type="button" onClick={() => navigate('/dashboard')} className="btn-secondary">
           ← Dashboard
-        </button>
+        </button> */}
         <h2 className="header-title">Apartment / building layout</h2>
         <nav className="header-actions builder-steps" aria-label="Builder steps">
           {STEPS.map((s, i) => (

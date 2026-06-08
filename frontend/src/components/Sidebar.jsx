@@ -5,17 +5,22 @@ export default function Sidebar() {
   const { user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
 
+  // Debug navigation state
+  if (import.meta.env.DEV) {
+    console.log(`[Sidebar] Rendering for ${isAdmin ? 'Admin' : 'Buyer'}: ${user?.email}`);
+  }
+
   return (
     <aside className="app-sidebar">
       <div className="sidebar-logo">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-        <span>ThirdVizion</span>
+        <span>Plote</span>
       </div>
 
       <nav className="sidebar-nav">
         {isAdmin ? (
           <>
-            <div className="nav-group-title">ADMIN</div>
+            {/* <div className="nav-group-title">ADMIN</div> */}
             <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               Dashboard
             </NavLink>
@@ -31,28 +36,26 @@ export default function Sidebar() {
             <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               Leads
             </NavLink>
-            <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              Settings
+            <NavLink to="/users" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+               Settings
             </NavLink>
           </>
         ) : (
           <>
-            <div className="nav-group-title">BUYER</div>
-            <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            {/* <div className="nav-group-title">BUYER</div> */}
+            <NavLink to="/buyer/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               Dashboard
             </NavLink>
-            <NavLink to="/projects" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <NavLink to="/buyer/projects" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               Projects
             </NavLink>
-            <NavLink to="/saved" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            {/* <NavLink to="/buyer/saved" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               Saved Plots
-            </NavLink>
-            <NavLink to="/interests" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            </NavLink> */}
+            <NavLink to="/buyer/interests" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               My Interests
             </NavLink>
-            <NavLink to="/support" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              Contact Support
-            </NavLink>
+            
           </>
         )}
       </nav>

@@ -29,7 +29,7 @@ export default function PlotEditPopup({ plot, onSave, onClose, buildingMode = fa
         estimatedPrice: plot.estimatedPrice ?? 0,
       })
     }
-  }, [plot, towers])
+  }, [plot])
 
   const handleChange = (key, value) => {
     setForm((prev) => {

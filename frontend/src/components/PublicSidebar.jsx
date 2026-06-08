@@ -48,8 +48,10 @@ export default function PublicSidebar({
   onToggleLegend,
 }) {
   const [filtersOpen, setFiltersOpen] = useState(true)
+  const [plotDetailsOpen, setPlotDetailsOpen] = useState(true)
 
   const toggleFiltersOpen = () => setFiltersOpen((v) => !v)
+  const togglePlotDetailsOpen = () => setPlotDetailsOpen((v) => !v)
 
   const filtersActive =
     filters.availability !== 'All' ||
@@ -58,7 +60,15 @@ export default function PublicSidebar({
     (filters.prices?.length ?? 0) > 0
 
   return (
-    <div className="public-sidebar">
+    <div className="public-sidebar" style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      height: '100%', 
+      overflowY: 'auto', 
+      overflowX: 'hidden',
+      width: '100%', 
+      maxWidth: '420px' 
+    }}>
       <div className="public-sidebar-layout">
         <div className="public-sidebar-live" aria-live="polite">
           <span className="public-sidebar-live-dot" aria-hidden />
@@ -136,6 +146,7 @@ export default function PublicSidebar({
             id="public-filters-region"
             role="region"
             aria-labelledby="public-filters-heading"
+            style={{ height: 'auto', maxHeight: 'none', overflow: 'visible' }}
           >
             <Filters
               filters={filters}
@@ -148,14 +159,41 @@ export default function PublicSidebar({
         )}
       </div>
 
-      <div className="public-sidebar-plot">
-        <p className="public-sidebar-section-label">Plot details</p>
-        <PlotDetailsPanelWithLead
-          variant="sidebar"
-          layout={layout}
-          layoutLabel={layout?.phaseInfo?.layoutName || undefined}
-          plot={selectedPlot ? { ...selectedPlot, layoutId: layout.id } : null}
-        />
+      <div className="public-sidebar-plot" style={{ height: 'auto', maxHeight: 'none', overflow: 'visible', flexShrink: 0, borderTop: '1px solid var(--color-border)' }}>
+        <div className="public-sidebar-filters-head">
+          <button
+            type="button"
+            className="public-sidebar-filters-toggle"
+            onClick={togglePlotDetailsOpen}
+            aria-expanded={plotDetailsOpen}
+          >
+            <span className="public-sidebar-filters-icon" aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+                <polyline points="13 2 13 9 20 9" />
+              </svg>
+            </span>
+            <span>Plot details</span>
+          </button>
+          <div className="public-sidebar-filters-head-actions">
+            <button
+              type="button"
+              className="public-sidebar-filters-chevron-btn"
+              onClick={togglePlotDetailsOpen}
+              aria-label={plotDetailsOpen ? 'Collapse plot details' : 'Expand plot details'}
+            >
+              <span aria-hidden>{plotDetailsOpen ? '▾' : '▸'}</span>
+            </button>
+          </div>
+        </div>
+        {plotDetailsOpen && (
+          <PlotDetailsPanelWithLead
+            variant="sidebar"
+            layout={layout}
+            layoutLabel={layout?.phaseInfo?.layoutName || undefined}
+            plot={selectedPlot ? { ...selectedPlot, layoutId: layout.id } : null}
+          />
+        )}
       </div>
     </div>
   )

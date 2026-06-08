@@ -32,9 +32,9 @@ export default function CreateBuildingPage() {
   return (
     <div className="app">
       <header className="header">
-        <button type="button" onClick={() => navigate('/dashboard')} className="btn-secondary">
+        {/* <button type="button" onClick={() => navigate('/dashboard')} className="btn-secondary">
           ← Dashboard
-        </button>
+        </button> */}
         <h2 className="header-title">Create building layout</h2>
       </header>
       <main className="dashboard-main">

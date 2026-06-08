@@ -153,7 +153,17 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
 
   if (!plot) {
     return (
-      <div className={`plot-mobile-card plot-mobile-card-empty ${variant === 'sidebar' ? 'plot-mobile-card--sidebar-empty' : ''}`}>
+      <div 
+        className={`plot-mobile-card plot-mobile-card-empty ${variant === 'sidebar' ? 'plot-mobile-card--sidebar-empty' : ''}`}
+        style={{ 
+          height: 'auto', 
+          minHeight: '180px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          padding: '1.5rem' 
+        }}
+      >
         <p>Select {isBuilding ? 'a unit' : 'a plot'} on the map to view details.</p>
       </div>
     )
@@ -161,7 +171,18 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
 
   if (submitted) {
     return (
-      <div className={`plot-mobile-card ${variant === 'sidebar' ? 'plot-mobile-card--sidebar' : ''}`}>
+      <div 
+        className={`plot-mobile-card ${variant === 'sidebar' ? 'plot-mobile-card--sidebar' : ''}`}
+        style={{ 
+          height: 'auto', 
+          minHeight: '180px', 
+          padding: '1.5rem', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'center', 
+          gap: '1rem' 
+        }}
+      >
         <h3 className="panel-title">Thank you!</h3>
         <p>
           We have received your interest for {isBuilding ? 'Unit' : 'Plot'} #{plot.number}. We will contact you shortly.
@@ -172,7 +193,18 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
 
   return (
     <>
-      <div className={cardClass}>
+      <div 
+        className={cardClass}
+        style={{
+          height: 'auto',
+          minHeight: '180px',
+          overflow: 'visible',
+          padding: '1.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1.25rem'
+        }}
+      >
         {variant === 'sidebar' ? (
           <>
             <div className="plot-detail-hero">
