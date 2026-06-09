@@ -6,6 +6,7 @@ import {
   useUpdateAdminUserMutation,
 } from '../api/apiSlice';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { normalizeDateValue } from '../utils/dateUtils';
 
 export default function Admin() {
   const { user, refreshUser } = useAuth();
@@ -39,6 +40,24 @@ export default function Admin() {
   
   const contactedCount = leads.filter(l => l.webhookDeliveredAt).length;
   const newLeadsCount = leadsTotal - contactedCount;
+
+  const formatDate = (value) => {
+    const normalized = normalizeDateValue(value);
+    if (!normalized) return '—';
+
+    const date = new Date(normalized);
+    if (Number.isNaN(date.getTime()) || date.getTime() <= 0) return '—';
+    return date.toLocaleDateString();
+  };
+
+  const formatDateTime = (value) => {
+    const normalized = normalizeDateValue(value);
+    if (!normalized) return '—';
+
+    const date = new Date(normalized);
+    if (Number.isNaN(date.getTime()) || date.getTime() <= 0) return '—';
+    return date.toLocaleString();
+  };
 
   const pushLeadWebhook = async (leadId) => {
     setError('');
@@ -147,7 +166,7 @@ export default function Admin() {
                 <tbody>
                   {leads.map((l) => (
                     <tr key={l.id} style={{borderTop: '1px solid var(--color-border)'}}>
-                      <td style={{padding: '1rem'}}>{new Date(l.createdAt).toLocaleDateString()}</td>
+                      <td style={{padding: '1rem'}}>{formatDate(l.createdAt)}</td>
                       <td style={{padding: '1rem', fontWeight: '500'}}>{l.layoutName}</td>
                       <td style={{padding: '1rem'}}>{l.unitId || l.plotId} {l.unitTower ? `(${l.unitTower})` : ''}</td>
                       <td style={{padding: '1rem', fontWeight: '500'}}>{l.customerName}</td>

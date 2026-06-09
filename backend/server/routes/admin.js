@@ -7,6 +7,15 @@ const { sendLeadWebhook } = require('../leadWebhook')
 
 const router = express.Router()
 
+const normalizeLeadDate = (value) => {
+  if (value === null || value === undefined || value === '') return null
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime()) || date.getTime() <= 0) return null
+
+  return value
+}
+
 router.use(authMiddleware)
 router.use(requireAdmin)
 
@@ -35,17 +44,18 @@ router.get('/users', async (req, res) => {
 
 router.post('/users', async (req, res) => {
   try {
-    const { email, password, autoWebhookOnSubmit } = req.body
+    const { email, password, role, autoWebhookOnSubmit } = req.body
     if (!email || !password) {
       return res.status(400).json({ error: 'email and password required' })
     }
     const hash = await bcrypt.hash(password, 10)
     const aw = autoWebhookOnSubmit ? 1 : 0
+    const nextRole = String(role) === 'admin' ? 'admin' : 'user'
     const user = await prisma.user.create({
       data: {
         email: String(email).toLowerCase().trim(),
         passwordHash: hash,
-        role: 'user',
+        role: nextRole,
         autoWebhookOnSubmit: aw,
       },
     })
@@ -174,14 +184,44 @@ router.get('/leads', async (req, res) => {
         inventoryType: meta.inventoryType || null,
         customerName: r.customerName,
         contactNumber: r.contactNumber,
+        status: r.status || 'new',
+        statusUpdatedAt: normalizeLeadDate(r.statusUpdatedAt),
         customerEmail: meta.email || null,
-        webhookDeliveredAt: r.webhookDeliveredAt || null,
+        webhookDeliveredAt: normalizeLeadDate(r.webhookDeliveredAt),
         webhookLastError: r.webhookLastError || null,
-        createdAt: r.createdAt,
+        createdAt: normalizeLeadDate(r.createdAt),
       }
     })
 
     res.json({ leads, total, page, limit })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.patch('/leads/:id/status', async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!id) return res.status(400).json({ error: 'Invalid id' })
+    const { status } = req.body
+    const allowed = ['new', 'pending', 'approved', 'rejected']
+    if (!status || !allowed.includes(String(status))) {
+      return res.status(400).json({ error: 'Invalid status' })
+    }
+
+    const lead = await prisma.lead.findUnique({ where: { id } })
+    if (!lead) return res.status(404).json({ error: 'Lead not found' })
+
+    const updated = await prisma.lead.update({
+      where: { id },
+      data: { status: String(status), statusUpdatedAt: new Date().toISOString() },
+    })
+
+    res.json({ success: true, lead: {
+      id: updated.id,
+      status: updated.status,
+      statusUpdatedAt: updated.statusUpdatedAt,
+    } })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }

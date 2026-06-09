@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Landing() {
   const { user, login } = useAuth()
   const navigate = useNavigate()
+
   useEffect(() => {
-    if (user) navigate('/dashboard', { replace: true })
+    if (user) navigate(user.role === 'admin' ? '/dashboard' : '/buyer/projects', { replace: true })
   }, [user, navigate])
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -18,8 +20,8 @@ export default function Landing() {
     setError('')
     setLoading(true)
     try {
-      await login(email, password)
-      navigate('/dashboard')
+      const loggedInUser = await login(email, password)
+      navigate(loggedInUser.role === 'admin' ? '/dashboard' : '/buyer/projects')
     } catch (err) {
       setError(err.message || 'Something went wrong')
     } finally {
@@ -31,16 +33,15 @@ export default function Landing() {
     <div className="landing-page">
       <div className="landing-inner">
         <aside className="landing-aside">
-          <p className="landing-kicker">Site plans, made clear</p>
-          <h1>Plot Listing</h1>
+          <p className="landing-kicker">Digital real estate showroom</p>
+          <h1>PlotVision</h1>
           <p className="landing-lede">
-            Upload your layout, mark each plot once, and share a single link buyers can explore—status, areas, and
-            pricing in one place.
+            Create interactive plot and building experiences with live inventory, buyer enquiries, and CRM-ready leads.
           </p>
           <div className="landing-meta">
-            <span>Interactive map</span>
-            <span>Public share links</span>
-            <span>Lead-ready details</span>
+            <span>Interactive maps</span>
+            <span>Public project links</span>
+            <span>Lead capture</span>
           </div>
         </aside>
         <div className="landing-card">
@@ -66,18 +67,18 @@ export default function Landing() {
                 id="landing-password"
                 type="password"
                 autoComplete="current-password"
-                placeholder="••••••••"
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
             <button type="submit" disabled={loading}>
-              {loading ? 'Please wait…' : 'Log in'}
+              {loading ? 'Please wait...' : 'Log in'}
             </button>
           </form>
           <p className="landing-note">
-            <Link to="/v/demo">View demo map</Link> (no login, no API). New accounts are created by an administrator.
+            New accounts are created by your administrator. Buyers can open public project links shared by the sales team.
           </p>
         </div>
       </div>

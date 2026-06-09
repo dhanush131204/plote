@@ -23,9 +23,9 @@ export default function SavedPlotsPage() {
 
     const details = [];
     savedPlotIds.forEach(saved => {
-      const layout = allLayouts.find(l => l.id === saved.layoutId);
+      const layout = allLayouts.find(l => String(l.id) === String(saved.layoutId));
       if (layout) {
-        const plot = (layout.plots || []).find(p => p.id === saved.plotId);
+        const plot = (layout.plots || []).find(p => String(p.id) === String(saved.plotId) || String(p.number) === String(saved.plotId));
         if (plot) {
           details.push({ ...plot, layoutName: layout.name, layoutSlug: layout.slug, layoutId: layout.id });
         }
@@ -51,8 +51,9 @@ export default function SavedPlotsPage() {
     <div className="dashboard-container">
       <section className="welcome-banner" style={{ marginBottom: '2rem' }}>
         <div className="welcome-content">
-          <h1 className="welcome-title">Saved Plots</h1>
-          <p className="welcome-subtitle">Your wishlist of properties.</p>
+          <p className="section-kicker">Shortlist</p>
+          <h1 className="welcome-title">Saved</h1>
+          <p className="welcome-subtitle">Your shortlist of plots and units to revisit before a site visit.</p>
         </div>
         <div className="welcome-stats">
           <div className="stat-badge">

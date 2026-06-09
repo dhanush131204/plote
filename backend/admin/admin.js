@@ -5,7 +5,7 @@ const { authenticate } = require('./auth.js');
 const { resources } = require('./resources.js');
 
 const adminJs = new AdminJS({
-    rootPath: '/admin',
+    rootPath: '/adminjs',
     resources,
     branding: {
         companyName: 'Plot Listing Admin',

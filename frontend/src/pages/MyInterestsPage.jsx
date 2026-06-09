@@ -1,90 +1,259 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useGetAdminLeadsQuery } from '../api/apiSlice';
+import { useGetLayoutsQuery, useGetMyLeadsQuery } from '../api/apiSlice';
+import { normalizeDateValue } from '../utils/dateUtils';
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export default function MyInterestsPage() {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  // Enable fetching for both roles. Ensure the backend endpoint filters data by user email for non-admins.
-  // Fetch leads only if isAdmin is true, otherwise skip the query to prevent 403 errors for buyers.
-  const { data: leadsData, isLoading: loadingLeads, error: errorLeads } = useGetAdminLeadsQuery(100, { skip: !isAdmin }); 
-  const [error, setError] = useState('');
+
+  const { data: layouts = [], isLoading: layoutsLoading, error: layoutsError } = useGetLayoutsQuery();
+  // Use buyer-specific leads query to avoid 403 Admin Lead API errors
+  const { data: leadsData, isLoading: leadsLoading, error: leadsError } = useGetMyLeadsQuery(undefined, {
+    skip: !user?.token,
+  });
+
+  const [savedPlots, setSavedPlots] = useState([]);
 
   useEffect(() => {
-    if (errorLeads) {
-      setError(errorLeads.data?.error || errorLeads.error || 'Failed to fetch your interests');
-    }
-  }, [errorLeads]);
+    const stored = JSON.parse(localStorage.getItem('savedPlots') || '[]');
+    setSavedPlots(stored);
+  }, []);
 
-  const myInterests = useMemo(() => {
-    if (!leadsData?.leads || !user?.email) return [];
-    return leadsData.leads.filter(lead => lead.customerEmail === user.email);
-  }, [leadsData, user]);
+  const interestedPlots = useMemo(() => {
+    if (!leadsData?.leads || !user?.email || layoutsLoading || !layouts) return [];
 
-  const getStatusBadge = (lead) => {
-    // Reusing existing status-related classes for visual consistency
-    if (lead.webhookDeliveredAt) {
-      return <span className="status-badge status-available" style={{ background: 'var(--color-available)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '999px', fontSize: '0.75rem' }}>Contacted</span>;
-    }
-    if (lead.webhookLastError) {
-      return <span className="status-badge status-sold" style={{ background: 'var(--color-danger)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '999px', fontSize: '0.75rem' }}>Failed</span>;
-    }
-    return <span className="status-badge status-booked" style={{ background: 'var(--color-booked)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '999px', fontSize: '0.75rem' }}>Interested</span>;
+    return leadsData.leads
+      .filter(lead => {
+        const leadEmail = (lead.customerEmail || lead.email || '').toLowerCase();
+        const authEmail = (user.email || '').toLowerCase();
+        return leadEmail === authEmail && authEmail !== '';
+      })
+      .map((lead) => {
+        const layout = (layouts || []).find(l => String(l.id) === String(lead.layoutId));
+        if (!layout) return null;
+
+        let plot = null;
+        const targetPlotId = String(lead.plotId || lead.unitId || '');
+
+        plot = (layout.plots || []).find(p => String(p.id) === targetPlotId || String(p.number) === targetPlotId);
+        if (!plot) return null;
+
+        return {
+          ...plot,
+          layoutName: layout.name,
+          layoutSlug: layout.slug,
+          submittedDate: lead.createdAt,
+          status: lead.status || 'new',
+          statusUpdatedAt: lead.statusUpdatedAt || null,
+        };
+      })
+      .filter(Boolean); // Remove any null entries if plot/layout not found
+  }, [leadsData, user, layouts, layoutsLoading]);
+
+
+  const savedPlotDetails = useMemo(() => {
+    if (layoutsLoading) return [];
+
+    return (savedPlots || [])
+      .map((saved) => {
+        const layout = (layouts || []).find(l => String(l.id) === String(saved.layoutId));
+        if (!layout) return null;
+
+        let plot = null;
+        const targetPlotId = String(saved.plotId || '');
+
+        plot = (layout.plots || []).find(p => String(p.id) === targetPlotId || String(p.number) === targetPlotId);
+
+        if (!plot) return null;
+
+        return {
+          ...plot,
+          layoutName: layout.name,
+          layoutSlug: layout.slug,
+        };
+      })
+      .filter(Boolean);
+  }, [savedPlots, layouts, layoutsLoading]);
+
+  const handleRemoveSavedPlot = (plotIdToRemove) => {
+    const updatedSavedPlots = savedPlots.filter(p => String(p.plotId) !== String(plotIdToRemove));
+    localStorage.setItem('savedPlots', JSON.stringify(updatedSavedPlots));
+    setSavedPlots(updatedSavedPlots);
   };
 
-  if (loadingLeads) return <div className="app-loading">Loading your interests...</div>;
+  const formatPrice = (num) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num || 0);
+
+  const formatDate = (value) => {
+    const normalized = normalizeDateValue(value);
+    if (!normalized) return '—';
+
+    const date = new Date(normalized);
+    if (Number.isNaN(date.getTime()) || date.getTime() <= 0) return '—';
+    return date.toLocaleDateString();
+  };
+
+  const formatDateTime = (value) => {
+    const normalized = normalizeDateValue(value);
+    if (!normalized) return '—';
+
+    const date = new Date(normalized);
+    if (Number.isNaN(date.getTime()) || date.getTime() <= 0) return '—';
+    return date.toLocaleString();
+  };
+
+  const renderStatusBadge = (status) => {
+    const normalized = String(status || 'new').toLowerCase();
+    const badgeColors = {
+      new: 'var(--color-booked)',
+      pending: '#f59e0b',
+      approved: 'var(--color-available)',
+      rejected: 'var(--color-danger)',
+      contacted: 'var(--color-available)',
+    };
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '0.35rem 0.75rem',
+          borderRadius: '999px',
+          fontSize: '0.78rem',
+          fontWeight: 600,
+          color: '#ffffff',
+          background: badgeColors[normalized] || 'var(--color-text-muted)',
+        }}
+      >
+        {normalized === 'new' ? 'New' : normalized.charAt(0).toUpperCase() + normalized.slice(1)}
+      </span>
+    );
+  };
+
+  if (layoutsLoading || leadsLoading) return <div className="app-loading">Loading interests...</div>;
+
+  // Show specific error if the API is restricted
+  if (leadsError) {
+    const errorMessage =
+      leadsError.data?.error ||
+      leadsError.error ||
+      (leadsError.status === 403 ? 'You do not have permission to view lead data.' : 'Error loading interests.');
+
+    return (
+      <div className="dashboard-container">
+        <div className="dashboard-error">
+          {errorMessage}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container">
       <section className="welcome-banner" style={{ marginBottom: '2rem' }}>
         <div className="welcome-content">
-          <h1 className="welcome-title">My Interests</h1>
-          <p className="welcome-subtitle">Properties where you have submitted an inquiry.</p>
-        </div>
-        <div className="welcome-stats">
-          <div className="stat-badge">
-            <span className="stat-value">{myInterests.length}</span>
-            <span className="stat-label">Total Inquiries</span>
-          </div>
+          <p className="section-kicker">Buyer journey</p>
+          <h1 className="welcome-title">My Activity</h1>
+          <p className="welcome-subtitle">Track your submitted interests and saved properties in one place.</p>
         </div>
       </section>
 
-      {error && <div className="dashboard-error">{error}</div>}
-
-      {myInterests.length === 0 ? (
-        <div className="empty-state-premium">
-          <div className="empty-illustration">📝</div>
-          <h3>No inquiries submitted yet</h3>
-          <p>Submit your interest on a plot or unit to see it listed here.</p>
-          <button className="btn-primary" onClick={() => navigate('/buyer/projects')}>Browse Projects</button>
+      {/* Interested Plots Section */}
+      <section className="projects-section" style={{ marginBottom: '3rem' }}>
+        <div className="section-header">
+          <h2 className="section-title">Interested Plots</h2>
         </div>
-      ) : (
-        <div className="admin-table-wrap" style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-          <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'var(--color-bg-wash)' }}>
-                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)' }}>Project</th>
-                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)' }}>Plot / Unit</th>
-                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)' }}>Inquiry Date</th>
-                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {myInterests.map((l) => (
-                <tr key={l.id} style={{ borderTop: '1px solid var(--color-border)' }}>
-                  <td style={{ padding: '1rem', fontWeight: '500' }}>{l.layoutName}</td>
-                  <td style={{ padding: '1rem' }}>{l.unitId || l.plotId} {l.unitTower ? `(${l.unitTower})` : ''}</td>
-                  <td style={{ padding: '1rem' }}>{new Date(l.createdAt).toLocaleDateString()}</td>
-                  <td style={{ padding: '1rem' }}>
-                    {getStatusBadge(l)}
-                  </td>
+        {(!interestedPlots || interestedPlots.length === 0) ? (
+          <div className="empty-state-premium mini">
+            <p>No interests submitted yet.</p>
+            <button className="btn-primary" onClick={() => navigate('/buyer/projects')} style={{ marginTop: '1rem' }}>
+              Browse Projects
+            </button>
+          </div>
+        ) : (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr style={{ background: 'var(--color-bg-wash)' }}>
+                  <th>Submitted</th>
+                  <th>Project</th>
+                  <th>Plot / Unit</th>
+                  <th>Status</th>
+                  <th>Last Updated</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {interestedPlots.map((plot) => (
+                  <tr key={`${plot.layoutId}-${plot.id}-${plot.submittedDate}`}>
+                    <td>{formatDate(plot.submittedDate)}</td>
+                    <td>{plot.layoutName}</td>
+                    <td>{plot.number}{plot.floor || plot.tower ? ` · ${plot.floor ?? ''}${plot.floor && plot.tower ? ' · ' : ''}${plot.tower ?? ''}` : ''}</td>
+                    <td>{renderStatusBadge(plot.status)}</td>
+                    <td>{formatDateTime(normalizeDateValue(plot.statusUpdatedAt) ? plot.statusUpdatedAt : plot.submittedDate)}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button className="btn-secondary" onClick={() => navigate(`/v/${plot.layoutSlug}?plotId=${plot.id}`)}>
+                        View Plot
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Saved Plots Section */}
+      <section className="projects-section" style={{ marginBottom: '3rem' }}>
+        <div className="section-header">
+          <h2 className="section-title">Saved Plots</h2>
         </div>
-      )}
+        {savedPlotDetails.length === 0 ? (
+          <div className="empty-state-premium mini">
+            <p>No saved plots yet.</p>
+          </div>
+        ) : (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr style={{ background: 'var(--color-bg-wash)' }}>
+                  <th>Project Name</th>
+                  <th>Plot Number</th>
+                  <th>Area</th>
+                  <th>Facing</th>
+                  <th>Price</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {savedPlotDetails.map((plot) => (
+                  <tr key={plot.id}>
+                    <td>{plot.layoutName}</td>
+                    <td>{plot.number}</td>
+                    <td>{plot.areaCent} Cent</td>
+                    <td>{plot.facing || 'N/A'}</td>
+                    <td>{formatPrice(plot.estimatedPrice)}</td>
+                    <td><span className={`status-${(plot.status || 'available').toLowerCase()}`}>{plot.status || 'Available'}</span></td>
+                    <td>
+                      <button className="btn-secondary" onClick={() => navigate(`/v/${plot.layoutSlug}?plotId=${plot.id}`)} style={{ marginRight: '0.5rem' }}>
+                        View Plot
+                      </button>
+                      <button className="btn-danger" onClick={() => handleRemoveSavedPlot(plot.id)}>
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

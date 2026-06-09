@@ -1,42 +1,31 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext'; // Assuming AuthContext provides user and isAdmin
-import { useGetLayoutsQuery, useGetAdminLeadsQuery, useDeleteLayoutMutation } from '../api/apiSlice'; // useGetAdminLeadsQuery will be filtered for buyer
+import { useAuth } from '../contexts/AuthContext';
+import { useGetLayoutsQuery, useGetAdminLeadsQuery, useDeleteLayoutMutation } from '../api/apiSlice';
+import { normalizeDateValue } from '../utils/dateUtils';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export default function Dashboard() {
   const { user, isAdmin, refreshUser } = useAuth();
   const { data: layouts = [], isLoading: loading } = useGetLayoutsQuery();
-  // Fetch leads only if isAdmin is true, otherwise skip the query to prevent 403 errors for buyers.
   const { data: leadsData } = useGetAdminLeadsQuery(5, { skip: !isAdmin });
   const [deleteLayout] = useDeleteLayoutMutation();
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  const formatDate = (value) => {
+    const normalized = normalizeDateValue(value);
+    if (!normalized) return '—';
+
+    const date = new Date(normalized);
+    if (Number.isNaN(date.getTime()) || date.getTime() <= 0) return '—';
+    return date.toLocaleDateString();
+  };
 
   useEffect(() => {
     refreshUser();
   }, [refreshUser]);
-
-  // Debugging: Log the layouts received from the API
-  useEffect(() => {
-    if (!loading) {
-      console.log(`[Dashboard] Projects from API (Role: ${isAdmin ? 'Admin' : 'Buyer'}):`, layouts);
-      console.log(`[Dashboard] Projects Count: ${layouts.length}`);
-    }
-  }, [layouts, loading]);
-
-  const [savedPlots, setSavedPlots] = useState([]);
-  useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem('savedPlots') || '[]');
-    setSavedPlots(stored);
-  }, []);
-
-  const myInterests = useMemo(() => {
-    if (!leadsData?.leads || !user?.email) return [];
-    return leadsData.leads.filter(lead => lead.customerEmail === user.email);
-  }, [leadsData, user]);
 
   if (loading) return <div className="app-loading">Loading...</div>;
 
@@ -45,21 +34,22 @@ export default function Dashboard() {
       {/* Welcome Banner */}
       <section className="welcome-banner">
         <div className="welcome-content">
+          <p className="section-kicker">{isAdmin ? 'Admin studio' : 'Buyer space'}</p>
           <h1 className="welcome-title">Welcome back, {user?.email?.split('@')[0]}</h1>
           <p className="welcome-subtitle">Here's what's happening with your properties today.</p>
         </div>
         {isAdmin ? (
           <div className="welcome-stats">
             <div className="stat-badge">
-              <span className="stat-value">{layouts.length}</span>
+              <span className="stat-value">{(layouts || []).length}</span>
               <span className="stat-label">Total Layouts</span>
             </div>
               <div className="stat-badge">
-                <span className="stat-value">{layouts.filter(l => l.layoutKind !== 'building').length}</span>
+                <span className="stat-value">{(layouts || []).filter(l => l?.layoutKind !== 'building').length}</span>
                 <span className="stat-label">Plot Maps</span>
               </div>
               <div className="stat-badge">
-                <span className="stat-value">{layouts.filter(l => l.layoutKind === 'building').length}</span>
+                <span className="stat-value">{(layouts || []).filter(l => l?.layoutKind === 'building').length}</span>
                 <span className="stat-label">Buildings</span>
               </div>
               <div className="stat-badge">
@@ -70,17 +60,9 @@ export default function Dashboard() {
         ) : (
           <div className="welcome-stats">
             <div className="stat-badge">
-              <span className="stat-value">{layouts.length}</span>
+              <span className="stat-value">{(layouts || []).length}</span>
               <span className="stat-label">Total Projects</span>
-            </div>
-            <div className="stat-badge">
-              <span className="stat-value">{savedPlots.length}</span>
-              <span className="stat-label">Saved Plots</span>
-            </div>
-            <div className="stat-badge">
-              <span className="stat-value">{myInterests.length}</span>
-              <span className="stat-label">My Interests</span>
-            </div>
+            </div>            
           </div>
         )}
       </section>
@@ -104,7 +86,7 @@ export default function Dashboard() {
                 <p>Facade, floors, units</p>
               </div>
             </button>
-            <button className="action-card" onClick={() => navigate('/admin')}>
+            <button className="action-card" onClick={() => navigate('/admin/leads')}>
               <div className="action-icon">👥</div>
               <div className="action-text">
                 <h3>View Leads</h3>
@@ -119,14 +101,14 @@ export default function Dashboard() {
       <section className="projects-section" style={{marginBottom: '3rem'}}>
         <div className="section-header">
           <h2 className="section-title">{isAdmin ? 'Recent Projects' : 'Explore Projects'}</h2>
-          <button className="btn-ghost" onClick={() => navigate(isAdmin ? '/layouts' : '/buyer/projects')}>
+          <button className="btn-ghost" onClick={() => navigate(isAdmin ? '/projects' : '/buyer/projects')}>
             {isAdmin ? 'View All' : 'View All Projects'}
           </button>
         </div>
 
         {error && <div className="dashboard-error">{error}</div>}
 
-        {layouts.length === 0 ? (
+        {(!layouts || layouts.length === 0) ? (
           <div className="empty-state-premium">
             <div className="empty-illustration">🏗️</div>
             <h3>{isAdmin ? "No projects available yet" : "No projects found"}</h3>
@@ -136,7 +118,7 @@ export default function Dashboard() {
         ) : (
           <div className="projects-grid">
             {/* Buyers see all projects, while admins get a "recent" overview on the dashboard */}
-            {(isAdmin ? layouts.slice(0, 4) : layouts).map((layout) => {
+            {(isAdmin ? (layouts || []).slice(0, 4) : (layouts || [])).map((layout) => {
               const isBuilding = layout.layoutKind === 'building';
               const plots = layout.plots || [];
               
@@ -174,7 +156,6 @@ export default function Dashboard() {
                         <button className="btn-secondary" onClick={() => navigate(layout.layoutKind === 'building' ? `/layout/${layout.id}/edit/building` : `/layout/${layout.id}/edit`)}>
                           Edit
                         </button>
-                        {/* Assuming deleteLayout is available from a hook or prop */}
                         <button className="btn-secondary btn-danger" onClick={async () => {
                           if (window.confirm('Are you sure you want to delete this layout?')) {
                             await deleteLayout(layout.id);
@@ -192,40 +173,14 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* Recently Viewed Properties (Placeholder for buyer) */}
-      {!isAdmin && (
-        <section className="activity-section" style={{marginBottom: '3rem'}}>
-          <div className="section-header">
-            <h2 className="section-title">Recently Viewed</h2>
-            <button className="btn-ghost" onClick={() => alert('View all recently viewed - not implemented')}>View All</button>
-          </div>
-          <div className="empty-state-premium mini">
-            <p>No recently viewed properties.</p>
-          </div>
-        </section>
-      )}
-
-      {/* Recommended Projects (Placeholder for buyer) */}
-      {!isAdmin && (
-        <section className="activity-section" style={{marginBottom: '3rem'}}>
-          <div className="section-header">
-            <h2 className="section-title">Recommended Projects</h2>
-            <button className="btn-ghost" onClick={() => alert('View all recommendations - not implemented')}>View All</button>
-          </div>
-          <div className="empty-state-premium mini">
-            <p>No recommendations at the moment.</p>
-          </div>
-        </section>
-      )}
-
       {/* Recent Leads (Admin Only) */}
       {isAdmin && (
         <section className="activity-section" style={{marginBottom: '3rem'}}>
           <div className="section-header">
             <h2 className="section-title">Recent Leads</h2>
-            <button className="btn-ghost" onClick={() => navigate('/admin')}>View All</button>
+            <button className="btn-ghost" onClick={() => navigate('/admin/leads')}>View All</button>
           </div>
-          {(!leadsData || leadsData.leads.length === 0) ? (
+          {(!leadsData?.leads || leadsData.leads.length === 0) ? (
             <div className="empty-state-premium mini">
               <p>No recent leads.</p>
             </div>
@@ -241,9 +196,9 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {leadsData.leads.slice(0, 5).map(l => (
+                  {(leadsData?.leads || []).slice(0, 5).map(l => (
                     <tr key={l.id}>
-                      <td>{new Date(l.createdAt).toLocaleDateString()}</td>
+                      <td>{formatDate(l.createdAt)}</td>
                       <td style={{fontWeight: '500'}}>{l.customerName}</td>
                       <td>{l.layoutName} - {l.unitId || l.plotId}</td>
                       <td style={{color: 'var(--color-text-muted)'}}>{l.contactNumber}</td>

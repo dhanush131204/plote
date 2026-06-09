@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useGetAdminLeadsQuery, usePushLeadWebhookMutation } from '../api/apiSlice';
+import { useGetAdminLeadsQuery, usePushLeadWebhookMutation, useUpdateLeadStatusMutation } from '../api/apiSlice';
+import { normalizeDateValue } from '../utils/dateUtils';
 
 export default function Leads() {
   const { data: leadsData, isLoading: loadingLeads, error: errorLeads } = useGetAdminLeadsQuery(100);
   const [pushWebhookTrigger] = usePushLeadWebhookMutation();
 
   const [error, setError] = useState('');
+  const [statusMsg, setStatusMsg] = useState('');
+  const [updatingId, setUpdatingId] = useState(null);
+  const [updateLeadStatus] = useUpdateLeadStatusMutation();
 
   useEffect(() => {
     if (errorLeads) {
@@ -18,6 +22,15 @@ export default function Leads() {
   
   const contactedCount = leads.filter(l => l.webhookDeliveredAt).length;
   const newLeadsCount = leadsTotal - contactedCount;
+
+  const formatDate = (value) => {
+    const normalized = normalizeDateValue(value);
+    if (!normalized) return '—';
+
+    const date = new Date(normalized);
+    if (Number.isNaN(date.getTime()) || date.getTime() <= 0) return '—';
+    return date.toLocaleDateString();
+  };
 
   const pushLeadWebhook = async (leadId) => {
     setError('');
@@ -79,7 +92,7 @@ export default function Leads() {
               <tbody>
                 {leads.map((l) => (
                   <tr key={l.id} style={{borderTop: '1px solid var(--color-border)'}}>
-                    <td style={{padding: '1rem'}}>{new Date(l.createdAt).toLocaleDateString()}</td>
+                    <td style={{padding: '1rem'}}>{formatDate(l.createdAt)}</td>
                     <td style={{padding: '1rem', fontWeight: '500'}}>{l.layoutName}</td>
                     <td style={{padding: '1rem'}}>{l.unitId || l.plotId} {l.unitTower ? `(${l.unitTower})` : ''}</td>
                     <td style={{padding: '1rem', fontWeight: '500'}}>{l.customerName}</td>
@@ -88,13 +101,27 @@ export default function Leads() {
                       <div>{l.customerEmail}</div>
                     </td>
                     <td style={{padding: '1rem'}}>
-                      {l.webhookDeliveredAt ? (
-                        <span style={{background: 'var(--color-available)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '999px', fontSize: '0.75rem'}}>Contacted</span>
-                      ) : l.webhookLastError ? (
-                        <span style={{background: 'var(--color-danger)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '999px', fontSize: '0.75rem'}}>Failed</span>
-                      ) : (
-                        <span style={{background: 'var(--color-booked)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '999px', fontSize: '0.75rem'}}>New</span>
-                      )}
+                      <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
+                        <select value={l.status || 'new'} onChange={async (e) => {
+                          setError(''); setStatusMsg(''); setUpdatingId(l.id);
+                          try {
+                            await updateLeadStatus({ id: l.id, status: e.target.value }).unwrap();
+                            setStatusMsg('Status updated');
+                          } catch (err) {
+                            setError(err.data?.error || err.message || 'Failed to update status');
+                          } finally {
+                            setUpdatingId(null);
+                            setTimeout(() => setStatusMsg(''), 3000);
+                          }
+                        }} disabled={updatingId===l.id} style={{padding: '0.25rem', borderRadius: '6px'}}>
+                          <option value="new">New</option>
+                          <option value="pending">Pending</option>
+                          <option value="approved">Approved</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+                        {l.statusUpdatedAt && <div style={{fontSize: '0.75rem', color: 'var(--color-text-muted)'}}>Updated {new Date(l.statusUpdatedAt).toLocaleString()}</div>}
+                        {statusMsg && updatingId===null && <div className="dashboard-success">{statusMsg}</div>}
+                      </div>
                     </td>
                     <td style={{padding: '1rem', textAlign: 'right'}}>
                       <button type="button" className="btn-secondary" style={{padding: '0.4rem 0.75rem', fontSize: '0.8125rem'}} onClick={() => pushLeadWebhook(l.id)}>

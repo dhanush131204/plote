@@ -1,81 +1,105 @@
-import { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useUpdateAdminUserMutation } from '../api/apiSlice';
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { useUpdateAdminUserMutation } from '../api/apiSlice'
 
 export default function Settings() {
-  const { user, refreshUser } = useAuth();
-  const [updateAdminUser] = useUpdateAdminUserMutation();
+  const { user, refreshUser } = useAuth()
+  const [updateAdminUser] = useUpdateAdminUserMutation()
+  const navigate = useNavigate()
 
-  const [editPassword, setEditPassword] = useState('');
-  const [editSaving, setEditSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [editPassword, setEditPassword] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSaveProfile = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
     if (editPassword.trim() && editPassword.trim().length < 6) {
-      setError('New password must be at least 6 characters');
-      return;
+      setError('New password must be at least 6 characters')
+      return
     }
-    setEditSaving(true);
-    setError('');
+    setEditSaving(true)
+    setSaved(false)
+    setError('')
     try {
       const body = {
         id: user.id,
         email: user.email,
         role: user.role,
         autoWebhookOnSubmit: user.autoWebhookOnSubmit,
-      };
-      if (editPassword.trim()) {
-        body.password = editPassword.trim();
       }
-      await updateAdminUser(body).unwrap();
-      await refreshUser();
-      setEditPassword('');
-      alert("Profile updated successfully.");
+      if (editPassword.trim()) body.password = editPassword.trim()
+      await updateAdminUser(body).unwrap()
+      await refreshUser()
+      setEditPassword('')
+      setSaved(true)
     } catch (err) {
-      setError(err.data?.error || err.message || 'Failed to update profile');
+      setError(err.data?.error || err.message || 'Failed to update profile')
     } finally {
-      setEditSaving(false);
+      setEditSaving(false)
     }
-  };
+  }
 
   return (
     <div className="dashboard-container">
-      <section className="settings-section">
-        <div className="section-header">
-          <h1 className="section-title">Profile Settings</h1>
-          <p className="welcome-subtitle">Manage your personal and company preferences.</p>
+      <section className="welcome-banner">
+        <div className="welcome-content">
+          <p className="section-kicker">Control room</p>
+          <h1 className="welcome-title">Settings</h1>
+          <p className="welcome-subtitle">Manage account security and project-level business controls.</p>
+        </div>
+      </section>
+
+      {error && <div className="dashboard-error">{error}</div>}
+      {saved && <div className="dashboard-success">Settings saved successfully.</div>}
+
+      <section className="profile-grid">
+        <div className="profile-panel">
+          <h2>Account security</h2>
+          <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <label className="builder-field">
+              Email address
+              <input type="email" value={user?.email || ''} disabled className="builder-input-block" />
+            </label>
+            <label className="builder-field">
+              New password
+              <input
+                type="password"
+                value={editPassword}
+                onChange={(e) => setEditPassword(e.target.value)}
+                placeholder="Leave blank to keep current password"
+                className="builder-input-block"
+              />
+            </label>
+            <button type="submit" className="btn-primary" disabled={editSaving}>
+              {editSaving ? 'Saving...' : 'Save security settings'}
+            </button>
+          </form>
         </div>
 
-        {error && <div className="dashboard-error">{error}</div>}
+        <div className="profile-panel">
+          <h2>Project contact details</h2>
+          <p>
+            Public Call and WhatsApp buttons are controlled inside each project builder under Settings. This keeps
+            every plot map or building connected to the correct sales contact.
+          </p>
+          <button type="button" className="btn-secondary profile-support-link" onClick={() => navigate('/projects')}>
+            Manage projects
+          </button>
+        </div>
 
-        <div style={{maxWidth: '600px', background: 'var(--color-surface)', padding: '2rem', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--color-border)'}}>
-          <form onSubmit={handleSaveProfile} style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
-            <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-              <label style={{fontWeight: '600', fontSize: '0.875rem'}}>Email Address</label>
-              <input type="email" value={user?.email || ''} disabled style={{padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-bg-wash)', color: 'var(--color-text-muted)'}} />
-              <p style={{fontSize: '0.75rem', color: 'var(--color-text-muted)'}}>Email address cannot be changed.</p>
-            </div>
-            
-            <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-              <label style={{fontWeight: '600', fontSize: '0.875rem'}}>New Password</label>
-              <input 
-                type="password" 
-                value={editPassword} 
-                onChange={(e) => setEditPassword(e.target.value)} 
-                placeholder="Leave blank to keep current password"
-                style={{padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)'}}
-              />
-            </div>
-
-            <div style={{borderTop: '1px solid var(--color-border)', paddingTop: '1.5rem', display: 'flex', justifyContent: 'flex-end'}}>
-              <button type="submit" className="btn-primary" disabled={editSaving}>
-                {editSaving ? 'Saving Changes...' : 'Save Profile Settings'}
-              </button>
-            </div>
-          </form>
+        <div className="profile-panel">
+          <h2>CRM webhooks</h2>
+          <p>
+            Webhook URLs are saved per project, and lead auto-send is controlled per admin account. This prevents one
+            project from accidentally sending leads to the wrong CRM pipeline.
+          </p>
+          <button type="button" className="btn-secondary profile-support-link" onClick={() => navigate('/customers')}>
+            Manage accounts
+          </button>
         </div>
       </section>
     </div>
-  );
+  )
 }

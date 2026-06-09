@@ -184,6 +184,10 @@ export const apiSlice = createApi({
       query: (limit = 100) => `/api/admin/leads?limit=${limit}`,
       providesTags: [{ type: 'Lead', id: 'LIST' }],
     }),
+    getMyLeads: builder.query({
+      query: () => '/api/leads/me',
+      providesTags: [{ type: 'Lead', id: 'MY_LIST' }],
+    }),
     getAdminActivity: builder.query({
       query: (limit = 200) => `/api/admin/activity?limit=${limit}`,
       providesTags: [{ type: 'Activity', id: 'LIST' }],
@@ -211,6 +215,14 @@ export const apiSlice = createApi({
       query: (leadId) => ({
         url: `/api/admin/leads/${leadId}/push-webhook`,
         method: 'POST',
+      }),
+      invalidatesTags: [{ type: 'Lead', id: 'LIST' }],
+    }),
+    updateLeadStatus: builder.mutation({
+      query: ({ id, status }) => ({
+        url: `/api/admin/leads/${id}/status`,
+        method: 'PATCH',
+        body: { status },
       }),
       invalidatesTags: [{ type: 'Lead', id: 'LIST' }],
     }),
@@ -252,10 +264,12 @@ export const {
   useUploadApartmentMediaMutation,
   useGetAdminUsersQuery,
   useGetAdminLeadsQuery,
+  useGetMyLeadsQuery,
   useGetAdminActivityQuery,
   useCreateAdminUserMutation,
   useUpdateAdminUserMutation,
   usePushLeadWebhookMutation,
+  useUpdateLeadStatusMutation,
   useCreateLeadMutation,
   usePostActivityMutation,
 } = apiSlice

@@ -36,6 +36,15 @@ function migrate() {
   if (!leadsCols.includes('unitId')) {
     db.exec(`ALTER TABLE leads ADD COLUMN unitId TEXT`)
   }
+  leadsCols = tableColumns('leads')
+  if (!leadsCols.includes('status')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN status TEXT DEFAULT 'new'`)
+    db.prepare(`UPDATE leads SET status = 'new' WHERE status IS NULL`).run()
+  }
+  leadsCols = tableColumns('leads')
+  if (!leadsCols.includes('statusUpdatedAt')) {
+    db.exec(`ALTER TABLE leads ADD COLUMN statusUpdatedAt TEXT`)
+  }
 
   let layoutsCols = tableColumns('layouts')
   if (!layoutsCols.includes('layoutKind')) {
@@ -87,6 +96,8 @@ db.exec(`
     customerName TEXT NOT NULL,
     contactNumber TEXT NOT NULL,
     metadata TEXT,
+    status TEXT DEFAULT 'new',
+    statusUpdatedAt TEXT,
     createdAt TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (layoutId) REFERENCES layouts(id)
   );

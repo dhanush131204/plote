@@ -1,26 +1,17 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGetLayoutsQuery } from '../api/apiSlice';
-import Filters from '../components/Filters'; // Assuming Filters can be reused or adapted
-import { useAuth } from '../contexts/AuthContext'; // Import useAuth to check isAdmin
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export default function ProjectsPage() {
   const { data: layouts = [], isLoading, error } = useGetLayoutsQuery();
-  const { isAdmin } = useAuth(); // Get isAdmin status
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!isLoading) {
-      console.log(`[ProjectsPage] Projects from API (Role: ${isAdmin ? 'Admin' : 'Buyer'}):`, layouts);
-      console.log(`[ProjectsPage] Projects Count: ${layouts.length}`);
-    }
-  }, [layouts, isLoading]);
 
   const [filters, setFilters] = useState({
     layoutKind: 'All', // 'Plot Map', 'Building', 'All'
     location: '', // New filter for projects
+    sortBy: 'newest',
   });
 
   const handleFilterChange = (key, value) => {
@@ -31,11 +22,12 @@ export default function ProjectsPage() {
     setFilters({
       layoutKind: 'All',
       location: '',
+      sortBy: 'newest',
     });
   };
 
   const filteredProjects = useMemo(() => {
-    let filtered = layouts;
+    let filtered = layouts || [];
 
     if (filters.layoutKind !== 'All') {
       filtered = filtered.filter(p => (p.layoutKind === 'building' ? 'Building' : 'Plot Map') === filters.layoutKind);
@@ -46,7 +38,24 @@ export default function ProjectsPage() {
       filtered = filtered.filter(p => p.location?.toLowerCase().includes(searchLower) || p.name?.toLowerCase().includes(searchLower));
     }
 
-    return filtered;
+    const sorted = [...filtered];
+    if (filters.sortBy === 'available') {
+      sorted.sort((a, b) => {
+        const aAvailable = (a.availablePlots ?? (a.plots || []).filter((p) => String(p.status || '').toLowerCase() !== 'sold').length) || 0;
+        const bAvailable = (b.availablePlots ?? (b.plots || []).filter((p) => String(p.status || '').toLowerCase() !== 'sold').length) || 0;
+        return bAvailable - aAvailable;
+      });
+    } else if (filters.sortBy === 'priceLow') {
+      sorted.sort((a, b) => {
+        const aPrice = a.plots?.length > 0 ? Math.min(...a.plots.map((p) => p.estimatedPrice || Infinity)) : Infinity;
+        const bPrice = b.plots?.length > 0 ? Math.min(...b.plots.map((p) => p.estimatedPrice || Infinity)) : Infinity;
+        return aPrice - bPrice;
+      });
+    } else {
+      sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+
+    return sorted;
   }, [layouts, filters]);
 
   if (isLoading) return <div className="app-loading">Loading projects...</div>;
@@ -54,121 +63,117 @@ export default function ProjectsPage() {
 
   return (
     <div className="dashboard-container">
-      <section className="welcome-banner" style={{ marginBottom: '2rem' }}>
+      <section className="welcome-banner" style={{ marginBottom: '1.5rem' }}>
         <div className="welcome-content">
-          <h1 className="welcome-title">All Projects</h1>
-          <p className="welcome-subtitle">Browse all available plot maps and building layouts.</p>
+          <p className="section-kicker">Interactive showroom</p>
+          <h1 className="welcome-title">Explore</h1>
+          <p className="welcome-subtitle">Browse available plot maps and building layouts with live inventory details.</p>
         </div>
         <div className="welcome-stats">
           <div className="stat-badge">
-            <span className="stat-value">{layouts.length}</span>
+            <span className="stat-value">{(layouts || []).length}</span>
             <span className="stat-label">Total Projects</span>
           </div>
         </div>
       </section>
 
-      <div className="projects-page-content" style={{ display: 'flex', gap: '2rem' }}>
-        <aside className="projects-filter-sidebar" style={{ flexShrink: 0, width: '250px', padding: '1.5rem', background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--color-border)' }}>
-          <h3 className="filters-title" style={{ marginTop: 0, marginBottom: '1.5rem', fontSize: '1.25rem' }}>Project Filters</h3>
-          <div className="filter-group" style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Search Location/Name</label>
-            <input
-              type="text"
-              placeholder="e.g., Bangalore, Phase 1"
-              value={filters.location}
-              onChange={(e) => handleFilterChange('location', e.target.value)}
-              className="builder-input builder-input-block"
-              style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}
-            />
-          </div>
-          <div className="filter-group" style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Type</label>
-            <div className="filter-pill-grid" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-              {['All', 'Plot Map', 'Building'].map(type => (
-                <button
-                  key={type}
-                  type="button"
-                  className={`filter-pill ${filters.layoutKind === type ? 'active' : ''}`}
-                  onClick={() => handleFilterChange('layoutKind', type)}
-                  style={{ padding: '0.5rem 1rem', borderRadius: '999px', border: '1px solid var(--color-border)', background: 'var(--color-bg-wash)', cursor: 'pointer', transition: 'all 0.2s ease', ...(filters.layoutKind === type && { background: 'var(--color-primary)', color: 'white', borderColor: 'var(--color-primary)' }) }}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button type="button" className="filters-reset btn-secondary" onClick={handleResetFilters} style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-bg-wash)', cursor: 'pointer' }}>
+      <section className="explore-toolbar">
+        <input
+          type="text"
+          placeholder="Search location or project name"
+          value={filters.location}
+          onChange={(e) => handleFilterChange('location', e.target.value)}
+          className="builder-input builder-input-block explore-toolbar-input"
+        />
+
+        <div className="explore-filter-chips">
+          {['All', 'Plot Map', 'Building'].map((type) => (
+            <button
+              key={type}
+              type="button"
+              className={`filter-chip ${filters.layoutKind === type ? 'active' : ''}`}
+              onClick={() => handleFilterChange('layoutKind', type)}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+
+        <div className="explore-toolbar-controls">
+          <label className="sort-label">
+            Sort by
+            <select
+              value={filters.sortBy}
+              onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+              className="sort-select"
+            >
+              <option value="newest">Newest</option>
+              <option value="available">Most Available</option>
+              <option value="priceLow">Price: Low to High</option>
+            </select>
+          </label>
+          <button type="button" className="btn-secondary reset-filters-button" onClick={handleResetFilters}>
             Reset Filters
           </button>
-        </aside>
+        </div>
+      </section>
 
-        <main className="projects-list-main" style={{ flexGrow: 1 }}>
-          {filteredProjects.length === 0 ? (
-            <div className="empty-state-premium">
-              <div className="empty-illustration">🔍</div>
-              <h3>No projects found</h3>
-              <p>Try adjusting your filters or search terms.</p>
-            </div>
-          ) : (
-            <div className="projects-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-              {filteredProjects.map((layout) => {
-                const isBuilding = layout.layoutKind === 'building';
-                const plots = layout.plots || [];
-                
-                // Calculate statistics dynamically
-                const totalPlots = layout.totalPlots ?? plots.length;
-                const availablePlots = layout.availablePlots ?? plots.filter(p => p.status?.toLowerCase() === "available").length;
-                const soldPlots = layout.soldPlots ?? plots.filter(p => p.status?.toLowerCase() === "sold").length;
+      {filteredProjects.length === 0 ? (
+        <div className="empty-state-premium">
+          <div className="empty-illustration">🔍</div>
+          <h3>No projects found</h3>
+          <p>Try adjusting your filters or search terms.</p>
+        </div>
+      ) : (
+        <div className="projects-grid">
+          {filteredProjects.map((layout) => {
+            const isBuilding = layout.layoutKind === 'building';
+            const plots = layout.plots || [];
 
-                const startingPrice = layout.plots?.length > 0
-                  ? Math.min(...layout.plots.map(p => p.estimatedPrice || Infinity))
-                  : null;
+            const totalPlots = layout.totalPlots ?? plots.length;
+            const availablePlots = layout.availablePlots ?? plots.filter((p) => String(p.status || '').toLowerCase() !== 'sold').length;
+            const soldPlots = layout.soldPlots ?? plots.filter((p) => String(p.status || '').toLowerCase() === 'sold').length;
+            const startingPrice = layout.plots?.length > 0
+              ? Math.min(...layout.plots.map((p) => p.estimatedPrice || Infinity))
+              : null;
 
-                const formatPrice = (num) =>
-                  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num || 0);
+            const formatPrice = (num) =>
+              new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num || 0);
 
-                return (
-                  <div key={layout.id} className="project-card">
-                    <div className="project-card-image">
-                      {layout.imagePath ? (
-                        <img src={`${API_BASE}/uploads/${layout.imagePath}`} alt={layout.name} loading="lazy" />
-                      ) : (
-                        <div className="project-card-placeholder">No Image</div>
-                      )}
-                      <span className="project-badge">{isBuilding ? 'Building' : 'Plot Map'}</span>
-                    </div>
-                    <div className="project-card-content">
-                      <h3 className="project-title">{layout.name}</h3>
-                      <div className="project-meta">
-                        <span className="project-meta-item">📍 {layout.location || 'Location not set'}</span>
-                        <div className="project-stats-summary" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.5rem' }}>
-                          <span className="project-meta-item">Total {isBuilding ? 'Units' : 'Plots'}: {totalPlots}</span>
-                          <span className="project-meta-item" style={{ color: 'var(--color-available)' }}>
-                            Available: {availablePlots}
-                          </span>
-                          <span className="project-meta-item" style={{ color: 'var(--color-danger)' }}>
-                            Sold: {soldPlots}
-                          </span>
-                        </div>
-                        {startingPrice != null && startingPrice !== Infinity && (
-                          <span className="project-meta-item">
-                            Starting from: {formatPrice(startingPrice)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="project-card-actions">
-                        <button className="btn-primary" onClick={() => navigate(`/v/${layout.slug}`)}>
-                          View
-                        </button>
-                      </div>
-                    </div>
+            return (
+              <div key={layout.id} className="project-card">
+                <div className="project-card-image">
+                  {layout.imagePath ? (
+                    <img src={`${API_BASE}/uploads/${layout.imagePath}`} alt={layout.name} loading="lazy" />
+                  ) : (
+                    <div className="project-card-placeholder">No Image</div>
+                  )}
+                  <span className="project-badge">{isBuilding ? 'Building' : 'Plot Map'}</span>
+                </div>
+                <div className="project-card-content">
+                  <div className="project-card-header">
+                    <h3 className="project-title">{layout.name}</h3>
+                    <span className="project-location">{layout.location || 'Location not set'}</span>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </main>
-      </div>
+                  <div className="project-meta">
+                    <span className="project-meta-item">Total {isBuilding ? 'Units' : 'Plots'}: {totalPlots}</span>
+                    <span className="project-meta-item project-meta-highlight">Available: {availablePlots}</span>
+                    <span className="project-meta-item project-meta-muted">Sold: {soldPlots}</span>
+                    {startingPrice != null && startingPrice !== Infinity && (
+                      <span className="project-meta-item project-starting-price">Starting from: {formatPrice(startingPrice)}</span>
+                    )}
+                  </div>
+                  <div className="project-card-actions">
+                    <button className="btn-primary" onClick={() => navigate(`/v/${layout.slug}`)}>
+                      View
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ const db = require('../db')
 const prisma = require('../prisma')
 const { parseLayout } = require('../utils/layoutParse')
 const { authMiddleware } = require('../middleware/auth')
+const { requireAdmin } = require('../middleware/admin')
 
 const router = express.Router()
 const uploadDir = path.join(__dirname, '..', '..', 'uploads')
@@ -192,15 +193,8 @@ async function getLayoutForUser(layoutId, userId) {
     where: { id: Number(userId) },
     select: { role: true }
   })
-
-  // Add backend debug log for user role
-  console.log('Backend Log: User Role (getLayoutForUser):', user?.role);
-
-  // FIX: Allow admins to see any layout, but for buyers, ensure they can only see public layouts.
-  // For now, we'll assume all layouts are public for buyers as per the request.
-  // If specific 'status' or 'published' flags are needed, they should be added here.
-  // The original `userId` filter for non-admins is removed to show all projects.
-  return db.prepare('SELECT * FROM layouts WHERE id = ?').get(layoutId);
+  if (!user) return null
+  return db.prepare('SELECT * FROM layouts WHERE id = ?').get(layoutId)
 }
 
 router.get('/', async (req, res) => {
@@ -209,21 +203,9 @@ router.get('/', async (req, res) => {
       where: { id: Number(req.userId) },
       select: { role: true },
     })
-    const isAdmin = user?.role === 'admin'
-
-    // Add backend debug log for user role
-    console.log('Backend Log: User Role (GET /api/layouts):', user?.role);
-
-    // FIX: Remove userId filtering for buyers. All layouts are now visible to all authenticated users.
-    // If a 'status' field (e.g., 'published') exists and is used, the query could be:
-    // `SELECT ... FROM layouts WHERE status = 'published' ORDER BY createdAt DESC` for buyers.
-    // As per the request, all projects created by admin should be visible to buyers, so we fetch all.
     const rows = db.prepare(
-      'SELECT id, name, slug, imagePath, layoutKind, building, createdAt FROM layouts ORDER BY createdAt DESC'
+      'SELECT id, name, slug, imagePath, layoutKind, building, plots, overlayConfig, phaseInfo, createdAt FROM layouts ORDER BY createdAt DESC'
     ).all();
-
-    // Add backend debug log for layouts returned
-    console.log('Backend Log: Layouts Returned (GET /api/layouts):', rows.length);
 
     const layouts = rows.map((row) => {
       const parsed = parseLayout({
@@ -242,6 +224,9 @@ router.get('/', async (req, res) => {
         slug: row.slug,
         imagePath: cardImagePath,
         layoutKind: parsed.layoutKind,
+        plots: parsed.plots,
+        floors: parsed.building?.floors || [],
+        phaseInfo: parsed.phaseInfo,
         createdAt: row.createdAt,
       }
     })
@@ -303,6 +288,7 @@ function postLayoutHandler(req, res) {
 
 router.post(
   '/',
+  requireAdmin,
   (req, res, next) => {
     if (req.is('multipart/form-data')) {
       upload.single('image')(req, res, next)
@@ -313,7 +299,7 @@ router.post(
   postLayoutHandler
 )
 
-router.post('/:id/convert-to-building', async (req, res) => {
+router.post('/:id/convert-to-building', requireAdmin, async (req, res) => {
   try {
     const layout = await getLayoutForUser(req.params.id, req.userId)
     if (!layout) return res.status(404).json({ error: 'Layout not found' })
@@ -335,7 +321,7 @@ router.post('/:id/convert-to-building', async (req, res) => {
   }
 })
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAdmin, async (req, res) => {
   try {
     const layout = await getLayoutForUser(req.params.id, req.userId)
     if (!layout) return res.status(404).json({ error: 'Layout not found' })
@@ -378,7 +364,7 @@ router.put('/:id', async (req, res) => {
   }
 })
 
-router.put('/:id/image', upload.single('image'), async (req, res) => {
+router.put('/:id/image', requireAdmin, upload.single('image'), async (req, res) => {
   try {
     const layout = await getLayoutForUser(req.params.id, req.userId)
     if (!layout) return res.status(404).json({ error: 'Layout not found' })
@@ -394,7 +380,7 @@ router.put('/:id/image', upload.single('image'), async (req, res) => {
   }
 })
 
-router.put('/:id/floor-image', floorUpload.single('image'), async (req, res) => {
+router.put('/:id/floor-image', requireAdmin, floorUpload.single('image'), async (req, res) => {
   try {
     const layout = await getLayoutForUser(req.params.id, req.userId)
     if (!layout) return res.status(404).json({ error: 'Layout not found' })
@@ -436,7 +422,7 @@ router.put('/:id/floor-image', floorUpload.single('image'), async (req, res) => 
   }
 })
 
-router.put('/:id/facade-image', facadeUpload.single('image'), async (req, res) => {
+router.put('/:id/facade-image', requireAdmin, facadeUpload.single('image'), async (req, res) => {
   try {
     const layout = await getLayoutForUser(req.params.id, req.userId)
     if (!layout) return res.status(404).json({ error: 'Layout not found' })
@@ -461,7 +447,7 @@ router.put('/:id/facade-image', facadeUpload.single('image'), async (req, res) =
   }
 })
 
-router.put('/:id/apartment-media', apartmentMediaUpload.single('file'), async (req, res) => {
+router.put('/:id/apartment-media', requireAdmin, apartmentMediaUpload.single('file'), async (req, res) => {
   try {
     const layout = await getLayoutForUser(req.params.id, req.userId)
     if (!layout) return res.status(404).json({ error: 'Layout not found' })
@@ -510,7 +496,7 @@ router.put('/:id/apartment-media', apartmentMediaUpload.single('file'), async (r
   }
 })
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const layout = await getLayoutForUser(req.params.id, req.userId)
     if (!layout) return res.status(404).json({ error: 'Layout not found' })

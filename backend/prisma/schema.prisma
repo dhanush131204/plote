@@ -11,7 +11,8 @@ model User {
   id                  Int      @id @default(autoincrement())
   email               String   @unique
   passwordHash        String
-  role                String   @default("user")
+  role                String   @default("admin")
+  companyName         String?
   autoWebhookOnSubmit Int      @default(0)
   createdAt           String?
   layouts             Layout[]
@@ -43,12 +44,16 @@ model Lead {
   id                 Int      @id @default(autoincrement())
   layoutId           Int
   plotId             Int
+  trackingId         String?  @unique
   customerName       String
   contactNumber      String
+  customerEmail      String?
   metadata           String?
   webhookDeliveredAt String?
   webhookLastError   String?
   unitId             String?
+  status             String   @default("new")
+  statusUpdatedAt    String?
   createdAt          String?
   layout             Layout   @relation(fields: [layoutId], references: [id])
 

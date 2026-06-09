@@ -10,6 +10,8 @@ import BuildingLayouts from './pages/BuildingLayouts'
 import Leads from './pages/Leads'
 import Users from './pages/Users'
 import Settings from './pages/Settings'
+import Insights from './pages/Insights'
+import ProfilePage from './pages/ProfilePage'
 import LayoutBuilder from './pages/LayoutBuilder'
 import BuildingLayoutBuilder from './pages/BuildingLayoutBuilder'
 import CreateBuildingPage from './pages/CreateBuildingPage'
@@ -30,10 +32,15 @@ export default function App() {
         <Route path="/buyer/projects" element={<ProjectsPage />} />
         <Route path="/buyer/saved" element={<SavedPlotsPage />} />
         <Route path="/buyer/interests" element={<MyInterestsPage />} />
+        <Route path="/buyer/profile" element={<ProfilePage />} />
         <Route path="/buyer/support" element={<ContactSupportPage />} />
       </Route>
       <Route element={<AdminRoute><AppLayout /></AdminRoute>}>
-        <Route path="/admin" element={<Leads />} />
+        <Route path="/admin" element={<Navigate to="/admin/leads" replace />} />
+        <Route path="/admin/leads" element={<Leads />} />
+        <Route path="/projects" element={<Layouts />} />
+        <Route path="/customers" element={<Users />} />
+        <Route path="/insights" element={<Insights />} />
         <Route path="/layouts" element={<Layouts />} />
         <Route path="/plot-maps" element={<PlotMaps />} />
         <Route path="/building-layouts" element={<BuildingLayouts />} />
