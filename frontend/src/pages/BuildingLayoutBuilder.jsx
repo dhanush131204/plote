@@ -58,6 +58,24 @@ export default function BuildingLayoutBuilder() {
   const [facadeCalibrateKey, setFacadeCalibrateKey] = useState(null)
   const [error, setError] = useState('')
   const [addConfigCustom, setAddConfigCustom] = useState('')
+  const [editFloor, setEditFloor] = useState(null)
+
+  const handleDeleteFacadeFloor = (plot) => {
+    setBuilding((b) => ({
+      ...b,
+      floors: (b.floors || []).filter((f) => f.id !== plot.id),
+    }))
+    setOverlayConfig((prev) => {
+      const norm = normalizeOverlayForBuilding(prev)
+      const facadeByFloor = { ...norm.facadeByFloor }
+      delete facadeByFloor[plot.id]
+      return { ...norm, facadeByFloor }
+    })
+    if (facadeCalibrateKey === plot.number) {
+      const remaining = (building.floors || []).filter((f) => f.id !== plot.id)
+      setFacadeCalibrateKey(remaining[0]?.id || null)
+    }
+  }
 
   useEffect(() => {
     if (fetchedLayout) {
@@ -398,7 +416,7 @@ export default function BuildingLayoutBuilder() {
   if (loading) return <div className="app-loading">Loading...</div>
 
   return (
-    <div className="app">
+    <div className="builder-workspace">
       <header className="header">
         {/* <button type="button" onClick={() => navigate('/dashboard')} className="btn-secondary">
           ← Dashboard
@@ -421,25 +439,32 @@ export default function BuildingLayoutBuilder() {
         {error && <div className="dashboard-error">{error}</div>}
 
         {step === 0 && (
-          <div className="builder-step">
-            <h3>Upload facade image</h3>
-            <p className="building-builder-lede">
-              Upload your building facade image. Once uploaded, you&apos;ll calibrate floor bands and add configuration details.
-            </p>
-            <label className="builder-upload builder-upload-large">
-              <input type="file" accept="image/*" onChange={handleFacadeUpload} />
-              Choose facade image
-            </label>
-            {building.facadeImagePath && (
-              <p className="builder-field-hint">
-                Facade uploaded. Click &quot;Next: Calibrate&quot; or continue below.
-              </p>
-            )}
-            {facadeImageSrc && (
-              <button type="button" onClick={() => setStep(1)} className="btn-primary builder-actions-top">
-                Next: Calibrate
-              </button>
-            )}
+          <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 10, background: 'var(--color-bg)' }}>
+            <div className="premium-wizard-card">
+              <h3>Upload facade image</h3>
+              <p>Upload your building facade image. Once uploaded, you'll calibrate floor bands and add configuration details.</p>
+              
+              {!building.facadeImagePath ? (
+                <label className="builder-upload-dashed">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 0.75rem', display: 'block', color: 'var(--color-text-muted)' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <input type="file" accept="image/*" onChange={handleFacadeUpload} />
+                  Choose facade image
+                </label>
+              ) : (
+                <div>
+                  <p style={{ marginTop: '1rem' }}>Facade uploaded. Replace image or continue to calibrate.</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <button type="button" onClick={() => setStep(1)} className="btn-primary" style={{ width: '100%', padding: '0.875rem' }}>
+                      Next: Calibrate
+                    </button>
+                    <label className="builder-upload-dashed" style={{ padding: '1.5rem' }}>
+                      <input type="file" accept="image/*" onChange={handleFacadeUpload} />
+                      Replace facade image
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -472,8 +497,11 @@ export default function BuildingLayoutBuilder() {
                         calibratePlotNum={facadeCalibrateKey}
                         onCalibratePlotNumChange={setFacadeCalibrateKey}
                         onUpdatePlot={() => {}}
-                        onEditPlot={() => {}}
-                        onDeletePlot={() => {}}
+                        onEditPlot={(plot) => {
+                          const floor = building.floors.find((f) => f.id === plot.id)
+                          if (floor) setEditFloor(floor)
+                        }}
+                        onDeletePlot={handleDeleteFacadeFloor}
                         calibPoints={calibPoints}
                         title="Facade floors"
                         emptyHint="Select a floor band and click 4 corners on the facade."
@@ -503,10 +531,10 @@ export default function BuildingLayoutBuilder() {
         )}
 
         {step === 2 && (
-          <div className="builder-step builder-step--floor-plan">
-            <div className="building-floor-plan-layout">
-              <aside className="building-floor-plan-sidebar">
-                <h4 className="builder-subheading">Floors</h4>
+          <div className="builder-step builder-step--floor-plan" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <div className="building-floor-plan-layout" style={{ flex: 1, minHeight: 0, display: 'flex', gap: '1.5rem', padding: '1.5rem', alignItems: 'stretch', background: 'var(--color-bg-wash)' }}>
+              <aside className="building-floor-plan-sidebar" style={{ width: '240px', flexShrink: 0, background: '#fff', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid var(--color-border)', overflowY: 'auto' }}>
+                <h4 className="builder-subheading" style={{ fontSize: '0.85rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>Floors</h4>
                 <ul className="building-floor-list-ul">
                   {[...(building.floors || [])]
                     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
@@ -516,6 +544,19 @@ export default function BuildingLayoutBuilder() {
                           type="button"
                           className={`building-floor-list-btn ${selectedFloorId === f.id ? 'active' : ''}`}
                           onClick={() => setSelectedFloorId(f.id)}
+                          style={{ 
+                            padding: '0.75rem 1rem', 
+                            borderRadius: '8px', 
+                            fontWeight: selectedFloorId === f.id ? 600 : 500,
+                            background: selectedFloorId === f.id ? '#f0fdf4' : 'transparent',
+                            color: selectedFloorId === f.id ? '#0a8870' : '#334155',
+                            border: selectedFloorId === f.id ? '1px solid #bbf7d0' : '1px solid transparent',
+                            width: '100%',
+                            textAlign: 'left',
+                            marginBottom: '0.5rem',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
                         >
                           {f.label || f.id}
                         </button>
@@ -523,7 +564,7 @@ export default function BuildingLayoutBuilder() {
                     ))}
                 </ul>
               </aside>
-              <div className="building-floor-plan-main">
+              <div className="building-floor-plan-main" style={{ flex: 1, minHeight: 0, overflowY: 'auto', background: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid var(--color-border)' }}>
                 {selectedFloorId && currentFloor && (
                   <div className="floor-config-section">
                     <div className="floor-config-header">
@@ -694,70 +735,80 @@ export default function BuildingLayoutBuilder() {
                 )}
               </div>
             </div>
-            <button type="button" onClick={() => setStep(3)} className="btn-primary builder-actions-top">
+            <button type="button" onClick={() => setStep(3)} className="btn-primary builder-actions-top" style={{ marginTop: '1.5rem', alignSelf: 'flex-start' }}>
               Next: Settings
             </button>
           </div>
         )}
 
         {step === 3 && (
-          <div className="builder-step">
-            <h3>Settings</h3>
-            <label className="builder-field">
-              Layout name <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
-            </label>
-            <label className="builder-field">
-              URL slug <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. tower-a-phase-1" />
-            </label>
-            <label className="builder-field">
-              Subtitle / label (optional){' '}
-              <input
-                type="text"
-                value={phaseInfo.layoutName}
-                onChange={(e) => setPhaseInfo((p) => ({ ...p, layoutName: e.target.value }))}
-              />
-            </label>
-            <label className="builder-field">
-              Description (public sidebar){' '}
-              <textarea
-                className="builder-textarea"
-                rows={4}
-                value={phaseInfo.description ?? ''}
-                onChange={(e) => setPhaseInfo((p) => ({ ...p, description: e.target.value }))}
-              />
-            </label>
-            <label className="builder-field">
-              Contact phone (public){' '}
-              <input
-                type="tel"
-                value={phaseInfo.phone ?? ''}
-                onChange={(e) => setPhaseInfo((p) => ({ ...p, phone: e.target.value }))}
-              />
-            </label>
-            <label className="builder-field">
-              WhatsApp (public){' '}
-              <input
-                type="tel"
-                value={phaseInfo.whatsapp ?? ''}
-                onChange={(e) => setPhaseInfo((p) => ({ ...p, whatsapp: e.target.value }))}
-              />
-            </label>
-            <label className="builder-field">
-              Optional embed URL (Matterport, Sketchfab, etc.){' '}
-              <input
-                type="url"
-                value={building.embed3dUrl ?? ''}
-                onChange={(e) => setBuilding((b) => ({ ...b, embed3dUrl: e.target.value || null }))}
-                placeholder="https://…"
-              />
-            </label>
-            <p className="builder-field-hint">Shown on the public page above the 3D stack preview when set.</p>
-            <label className="builder-field">
-              Webhook URL (CRM) <input type="url" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://..." />
-            </label>
-            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
-              {saving ? 'Saving...' : 'Save layout'}
-            </button>
+          <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 10, background: 'var(--color-bg)' }}>
+            <div className="builder-floating-panel" style={{ marginTop: '2rem', marginBottom: '2rem', position: 'relative', top: 'auto', left: 'auto', transform: 'none', background: '#fff', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', borderRadius: '12px', padding: '2rem', width: '100%', maxWidth: '600px' }}>
+              <h3>Settings</h3>
+              <p>Configure public building details.</p>
+              <label className="builder-field">
+                Building name <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
+              </label>
+              <label className="builder-field">
+                URL slug <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. tower-a-phase-1" />
+              </label>
+              <label className="builder-field">
+                Subtitle / label (optional){' '}
+                <input
+                  type="text"
+                  value={phaseInfo.layoutName}
+                  onChange={(e) => setPhaseInfo((p) => ({ ...p, layoutName: e.target.value }))}
+                />
+              </label>
+              <label className="builder-field">
+                Description (public sidebar){' '}
+                <textarea
+                  className="builder-textarea"
+                  rows={4}
+                  value={phaseInfo.description ?? ''}
+                  onChange={(e) => setPhaseInfo((p) => ({ ...p, description: e.target.value }))}
+                />
+              </label>
+              <label className="builder-field">
+                Contact phone (public){' '}
+                <input
+                  type="tel"
+                  value={phaseInfo.phone ?? ''}
+                  onChange={(e) => setPhaseInfo((p) => ({ ...p, phone: e.target.value }))}
+                />
+              </label>
+              <label className="builder-field">
+                WhatsApp (public){' '}
+                <input
+                  type="tel"
+                  value={phaseInfo.whatsapp ?? ''}
+                  onChange={(e) => setPhaseInfo((p) => ({ ...p, whatsapp: e.target.value }))}
+                />
+              </label>
+              <label className="builder-field">
+                Optional embed URL (Matterport, Sketchfab, etc.){' '}
+                <input
+                  type="url"
+                  value={phaseInfo.embedUrl ?? ''}
+                  onChange={(e) => setPhaseInfo((p) => ({ ...p, embedUrl: e.target.value }))}
+                  placeholder="https://..."
+                />
+                <small style={{ display: 'block', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>Shown on the public page above the 3D stack preview when set.</small>
+              </label>
+              <label className="builder-field">
+                Webhook URL (CRM){' '}
+                <input
+                  type="url"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+              </label>
+
+              <button type="button" onClick={handleSave} disabled={saving} className="btn-primary" style={{ marginTop: '1rem', width: '100%' }}>
+                {saving ? 'Saving...' : 'Save & Publish'}
+              </button>
+            </div>
           </div>
         )}
       </main>
@@ -773,6 +824,53 @@ export default function BuildingLayoutBuilder() {
           }}
           onClose={() => setEditPopupPlot(null)}
         />
+      )}
+      {editFloor && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="floor-edit-title">
+          <div className="modal-backdrop" onClick={() => setEditFloor(null)} aria-hidden="true" />
+          <div className="modal-content plot-edit-popup" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h2 id="floor-edit-title">Edit Floor Label</h2>
+              <button type="button" className="modal-close" onClick={() => setEditFloor(null)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault()
+                const updatedLabel = e.target.floorLabel.value.trim()
+                if (updatedLabel) {
+                  setBuilding(b => ({
+                    ...b,
+                    floors: (b.floors || []).map(f => f.id === editFloor.id ? { ...f, label: updatedLabel } : f)
+                  }))
+                }
+                setEditFloor(null)
+              }} 
+              className="modal-body"
+              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            >
+              <label className="plot-edit-field" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <span>Floor Name / Label</span>
+                <input
+                  type="text"
+                  name="floorLabel"
+                  defaultValue={editFloor.label || editFloor.id}
+                  required
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }}
+                />
+              </label>
+              <div className="modal-actions" style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setEditFloor(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }}>
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   )

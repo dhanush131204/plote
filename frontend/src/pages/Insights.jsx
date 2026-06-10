@@ -32,39 +32,41 @@ export default function Insights() {
 
   return (
     <div className="dashboard-container">
-      <section className="welcome-banner">
-        <div className="welcome-content">
-          <p className="section-kicker">Performance</p>
-          <h1 className="welcome-title">Insights</h1>
-          <p className="welcome-subtitle">Understand project demand, buyer activity, and lead movement.</p>
+      <div className="dashboard-intro" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
+        <div>
+          <h1 style={{fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem'}}>Insights</h1>
+          <p style={{color: 'var(--color-text-muted)'}}>Understand project demand, buyer activity, and lead movement.</p>
         </div>
-        <div className="welcome-stats">
-          <div className="stat-badge">
-            <span className="stat-value">{events.length}</span>
-            <span className="stat-label">Activity</span>
-          </div>
-          <div className="stat-badge">
-            <span className="stat-value">{leads.length}</span>
-            <span className="stat-label">Leads</span>
-          </div>
-        </div>
-      </section>
+      </div>
 
-      <section className="insight-grid">
-        <div className="insight-card">
-          <span className="insight-label">Most active project</span>
-          <strong>{projectStats[0]?.name || 'No activity yet'}</strong>
-          <p>{projectStats[0] ? `${projectStats[0].views} views, ${projectStats[0].selections} selections` : 'Share a public project link to start collecting activity.'}</p>
+      <section className="premium-kpi-grid">
+        <div className="premium-stat-card">
+          <div className="premium-stat-header">
+            <span>Total Activity</span>
+          </div>
+          <div className="premium-stat-value">{events.length}</div>
+          <div><span className="premium-stat-trend neutral">Interactions</span></div>
         </div>
-        <div className="insight-card">
-          <span className="insight-label">Lead conversion signal</span>
-          <strong>{events.length ? `${Math.round((leads.length / Math.max(events.length, 1)) * 100)}%` : '0%'}</strong>
-          <p>Ratio of enquiries to tracked interactions.</p>
+        <div className="premium-stat-card">
+          <div className="premium-stat-header">
+            <span>Most Active Project</span>
+          </div>
+          <div className="premium-stat-value" style={{fontSize: '1.5rem', marginTop: '0.5rem'}}>{projectStats[0]?.name || 'No activity yet'}</div>
+          <div><span className="premium-stat-trend positive">{projectStats[0] ? `${projectStats[0].views} views` : 'N/A'}</span></div>
         </div>
-        <div className="insight-card">
-          <span className="insight-label">Inventory ready</span>
-          <strong>{projectStats.reduce((sum, item) => sum + item.available, 0)}</strong>
-          <p>Available plots or units currently visible to buyers.</p>
+        <div className="premium-stat-card">
+          <div className="premium-stat-header">
+            <span>Conversion Signal</span>
+          </div>
+          <div className="premium-stat-value">{events.length ? `${Math.round((leads.length / Math.max(events.length, 1)) * 100)}%` : '0%'}</div>
+          <div><span className="premium-stat-trend neutral">Enquiries vs. views</span></div>
+        </div>
+        <div className="premium-stat-card">
+          <div className="premium-stat-header">
+            <span>Inventory Ready</span>
+          </div>
+          <div className="premium-stat-value" style={{color: 'var(--color-available)'}}>{projectStats.reduce((sum, item) => sum + item.available, 0)}</div>
+          <div><span className="premium-stat-trend neutral">Units Available</span></div>
         </div>
       </section>
 
@@ -72,32 +74,32 @@ export default function Insights() {
         <div className="section-header">
           <h2 className="section-title">Project engagement</h2>
         </div>
-        <div className="admin-table-wrap">
-          <table className="admin-table">
+        <div className="admin-table-wrap" style={{background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden', border: '1px solid var(--color-border)'}}>
+          <table className="admin-table" style={{width: '100%', borderCollapse: 'collapse'}}>
             <thead>
-              <tr>
-                <th>Project</th>
-                <th>Type</th>
-                <th>Views</th>
-                <th>Selections</th>
-                <th>Leads</th>
-                <th>Available</th>
+              <tr style={{background: 'var(--color-bg-wash)'}}>
+                <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Project</th>
+                <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Type</th>
+                <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Views</th>
+                <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Selections</th>
+                <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Leads</th>
+                <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Available</th>
               </tr>
             </thead>
             <tbody>
               {projectStats.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.name}</td>
-                  <td>{item.type}</td>
-                  <td>{item.views}</td>
-                  <td>{item.selections}</td>
-                  <td>{item.leads}</td>
-                  <td>{item.available}</td>
+                <tr key={item.id} style={{borderTop: '1px solid var(--color-border)', background: 'var(--color-surface)', transition: 'background 0.2s'}}>
+                  <td style={{padding: '1rem', fontWeight: '600'}}>{item.name}</td>
+                  <td style={{padding: '1rem'}}><span className="project-badge">{item.type}</span></td>
+                  <td style={{padding: '1rem'}}>{item.views}</td>
+                  <td style={{padding: '1rem'}}>{item.selections}</td>
+                  <td style={{padding: '1rem', fontWeight: '600', color: 'var(--color-accent)'}}>{item.leads}</td>
+                  <td style={{padding: '1rem', fontWeight: '600', color: 'var(--color-available)'}}>{item.available}</td>
                 </tr>
               ))}
               {projectStats.length === 0 && (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>No projects available.</td>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>No projects available.</td>
                 </tr>
               )}
             </tbody>

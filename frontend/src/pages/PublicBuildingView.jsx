@@ -250,40 +250,34 @@ export default function PublicBuildingView({ layout }) {
   )
 
   return (
-    <div className="app public-view-app public-building-app">
-      <main className="main-content main-content--stack public-view-main">
-        <div className="plot-container plot-container--grow plot-container--public plot-container--replica">
-          {legendOpen && publicStep === 'units' && (
-            <div className="plot-legend-float" role="region" aria-label="Unit status legend">
-              <span className="legend-item available">Available</span>
-              <span className="legend-item booked">Booked</span>
-              <span className="legend-item sold">Sold</span>
-            </div>
-          )}
+    <>
+      {/* Floating Controls */}
+      <div className="floating-map-controls glass-panel" style={{ padding: '0.5rem 1rem', borderRadius: 'var(--radius-xl)' }}>
+        <button className="btn-icon btn-ghost" onClick={() => setZoomInTrigger(n => n + 1)} aria-label="Zoom in">+</button>
+        <button className="btn-icon btn-ghost" onClick={() => setZoomOutTrigger(n => n + 1)} aria-label="Zoom out">−</button>
+        <button className="btn-icon btn-ghost" onClick={() => setResetZoomTrigger(n => n + 1)} aria-label="Reset view">↺</button>
+      </div>
 
-          {publicStep === 'facade' && facadeImageSrc && (
-            <ImagePlotMapView
-              imageSrc={facadeImageSrc}
-              overlayConfig={facadeOverlayFlat}
-              plots={facadePlots}
-              selectedPlot={selectedFacadePlot}
-              onSelectPlot={(plot) => handleFacadeFloorPick(plot.id)}
-              emptyMessage="Facade is not calibrated yet."
-              zoomPanEnabled
-              detailsSide="left"
-              beforeMapSlot={beforeMapSlot}
-              detailsSlot={sidebarEl}
-              resetZoomTrigger={resetZoomTrigger}
-              zoomInTrigger={zoomInTrigger}
-              zoomOutTrigger={zoomOutTrigger}
-            />
-          )}
+      <div style={{ width: '100vw', height: '100vh', position: 'absolute', top: 0, left: 0 }}>
+        {publicStep === 'facade' && facadeImageSrc && (
+          <ImagePlotMapView
+            imageSrc={facadeImageSrc}
+            overlayConfig={facadeOverlayFlat}
+            plots={facadePlots}
+            selectedPlot={selectedFacadePlot}
+            onSelectPlot={(plot) => handleFacadeFloorPick(plot.id)}
+            emptyMessage="Facade is not calibrated yet."
+            zoomPanEnabled
+            beforeMapSlot={beforeMapSlot}
+            resetZoomTrigger={resetZoomTrigger}
+            zoomInTrigger={zoomInTrigger}
+            zoomOutTrigger={zoomOutTrigger}
+          />
+        )}
 
-          {publicStep === 'config' && selectedFloorId && (
-            <div className="public-building-config-layout image-plot-map-layout details-side-left">
-              <div className="plot-details-side plot-details-side--left">{sidebarEl}</div>
-              <div className="image-plot-map-side">
-                <ConfigurationPicker
+        {publicStep === 'config' && selectedFloorId && (
+          <div className="public-building-config-layout image-plot-map-layout" style={{ width: '100%', height: '100%', padding: '2rem' }}>
+            <ConfigurationPicker
                   configurations={currentFloor?.configurations || []}
                   floorLabel={currentFloor?.label || currentFloor?.id}
                   apiBase={API_BASE}
@@ -297,29 +291,52 @@ export default function PublicBuildingView({ layout }) {
                     setSelectedUnit(null)
                   }}
                 />
-              </div>
-            </div>
-          )}
+          </div>
+        )}
 
-          {publicStep === 'units' && (
-            <ImagePlotMapView
-              imageSrc={imageSrc}
-              overlayConfig={floorOverlay}
-              plots={filteredUnits}
-              selectedPlot={selectedUnit}
-              onSelectPlot={setSelectedUnit}
-              emptyMessage={mapEmptyMessage}
-              zoomPanEnabled
-              detailsSide="left"
-              beforeMapSlot={beforeMapSlot}
-              detailsSlot={sidebarEl}
-              resetZoomTrigger={resetZoomTrigger}
-              zoomInTrigger={zoomInTrigger}
-              zoomOutTrigger={zoomOutTrigger}
+        {publicStep === 'units' && (
+          <ImagePlotMapView
+            imageSrc={imageSrc}
+            overlayConfig={floorOverlay}
+            plots={filteredUnits}
+            selectedPlot={selectedUnit}
+            onSelectPlot={setSelectedUnit}
+            emptyMessage={mapEmptyMessage}
+            zoomPanEnabled
+            beforeMapSlot={beforeMapSlot}
+            resetZoomTrigger={resetZoomTrigger}
+            zoomInTrigger={zoomInTrigger}
+            zoomOutTrigger={zoomOutTrigger}
+          />
+        )}
+      </div>
+
+      {/* Drawer Overlay for Sidebars / Details */}
+      {((publicStep === 'units' && selectedUnit) || publicStep === 'facade' || publicStep === 'config') && (
+        <>
+          {selectedUnit && (
+            <div 
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 90 }} 
+              onClick={() => setSelectedUnit(null)}
+              className="mobile-only-backdrop"
             />
           )}
-        </div>
-      </main>
-    </div>
+          <div className="premium-drawer">
+            {selectedUnit && (
+              <button 
+                className="btn-icon btn-ghost" 
+                style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 110 }}
+                onClick={() => setSelectedUnit(null)}
+              >
+                ×
+              </button>
+            )}
+            <div style={{ overflowY: 'auto', height: '100%' }}>
+              {sidebarEl}
+            </div>
+          </div>
+        </>
+      )}
+    </>
   )
 }

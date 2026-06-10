@@ -30,37 +30,38 @@ export default function CreateBuildingPage() {
   }
 
   return (
-    <div className="app">
-      <header className="header">
-        {/* <button type="button" onClick={() => navigate('/dashboard')} className="btn-secondary">
-          ← Dashboard
-        </button> */}
-        <h2 className="header-title">Create building layout</h2>
+    <div className="builder-workspace">
+      <header className="header" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface)', position: 'relative', zIndex: 10 }}>
+        <h2 className="header-title" style={{ padding: '0 1.5rem' }}>Create building layout</h2>
       </header>
-      <main className="dashboard-main">
-        <div className="dashboard-intro">
-          <h1>Create building layout</h1>
+      
+      <main style={{ flex: 1, overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+        <div className="premium-wizard-card">
+          <h3>Create building layout</h3>
           <p>
             Use per-floor 2D plans with unit outlines, a floor stack control, and a lightweight 3D preview. Optional
             Matterport or Sketchfab embeds are supported in settings.
           </p>
+          
+          {error && <div className="dashboard-error">{error}</div>}
+          
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.5rem' }}>
+            <label className="builder-field">
+              Layout name{' '}
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Tower A — Phase 1"
+                className="builder-input-block"
+                style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}
+              />
+            </label>
+            <button type="submit" className="btn-primary" disabled={creating} style={{ padding: '0.875rem' }}>
+              {creating ? 'Creating…' : 'Continue to editor'}
+            </button>
+          </form>
         </div>
-        {error && <div className="dashboard-error">{error}</div>}
-        <form onSubmit={handleSubmit} className="create-building-form">
-          <label className="builder-field">
-            Layout name{' '}
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Tower A — Phase 1"
-              className="builder-input-block"
-            />
-          </label>
-          <button type="submit" className="btn-primary" disabled={creating}>
-            {creating ? 'Creating…' : 'Continue to editor'}
-          </button>
-        </form>
       </main>
     </div>
   )

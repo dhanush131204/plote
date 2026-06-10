@@ -34,8 +34,14 @@ export default function Settings() {
       await refreshUser()
       setEditPassword('')
       setSaved(true)
+      setTimeout(() => {
+        setSaved(false)
+      }, 4000)
     } catch (err) {
       setError(err.data?.error || err.message || 'Failed to update profile')
+      setTimeout(() => {
+        setError('')
+      }, 4000)
     } finally {
       setEditSaving(false)
     }

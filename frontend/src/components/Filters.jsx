@@ -14,12 +14,26 @@ export default function Filters({ filters, onFilterChange, onReset, hideResetBut
     onFilterChange(key, next)
   }
 
+  const labelStyle = {
+    fontSize: '0.75rem',
+    fontWeight: 700,
+    letterSpacing: '0.05em',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    marginBottom: '0.5rem',
+    display: 'block'
+  }
+
+  const groupStyle = {
+    marginBottom: '1.5rem'
+  }
+
   return (
     <aside className={`filters-sidebar ${hideResetButton ? 'filters-sidebar--embedded' : ''}`}>
       {!hideTitle && <h3 className="filters-title">Filters</h3>}
 
-      <div className="filter-group">
-        <label>Availability</label>
+      <div style={groupStyle}>
+        <label style={labelStyle}>Availability</label>
         <div className="filter-pill-grid" role="group" aria-label="Availability">
           {availabilityOpts.map((option) => {
             const active = filters.availability === option
@@ -38,8 +52,8 @@ export default function Filters({ filters, onFilterChange, onReset, hideResetBut
         </div>
       </div>
 
-      <div className="filter-group">
-        <label>Facing</label>
+      <div style={groupStyle}>
+        <label style={labelStyle}>Facing</label>
         <div className="filter-pill-grid" role="group" aria-label="Facing">
           {facingOpts.map((option) => {
             const active = filters.facing === option
@@ -58,8 +72,8 @@ export default function Filters({ filters, onFilterChange, onReset, hideResetBut
         </div>
       </div>
 
-      <div className="filter-group">
-        <label>Area (cent)</label>
+      <div style={groupStyle}>
+        <label style={labelStyle}>Area (cent)</label>
         <p className="filter-pill-hint">Tap to select — none selected shows all areas.</p>
         <div className="filter-pill-grid" role="group" aria-label="Area buckets">
           {AREA_OPTIONS.map((option) => {
@@ -79,8 +93,8 @@ export default function Filters({ filters, onFilterChange, onReset, hideResetBut
         </div>
       </div>
 
-      <div className="filter-group">
-        <label>Price range</label>
+      <div style={groupStyle}>
+        <label style={labelStyle}>Price range</label>
         <p className="filter-pill-hint">Tap to select — none selected shows all prices.</p>
         <div className="filter-pill-grid" role="group" aria-label="Price ranges">
           {PRICE_OPTIONS.map((option) => {

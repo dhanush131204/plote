@@ -1,11 +1,14 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useCreateAdminUserMutation } from '../api/apiSlice'
 
 const initialFormState = {
+  name: '',
+  companyName: '',
   email: '',
+  phone: '',
   password: '',
-  role: 'user',
+  role: 'admin',
 }
 
 export default function AddUserModal({ isOpen, onClose }) {
@@ -50,9 +53,9 @@ export default function AddUserModal({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
+    const { name, companyName, phone, role } = formState
     const email = formState.email.trim()
     const password = formState.password
-    const role = formState.role
 
     if (!email || !password) {
       setError('Email and password are required')
@@ -72,7 +75,7 @@ export default function AddUserModal({ isOpen, onClose }) {
     try {
       setSaving(true)
       setError('')
-      await createAdminUser({ email, password, role }).unwrap()
+      await createAdminUser({ email, password, role, name, companyName, phone }).unwrap()
       setFormState(initialFormState)
       onClose()
     } catch (err) {
@@ -97,11 +100,44 @@ export default function AddUserModal({ isOpen, onClose }) {
           {error && <div className="dashboard-error">{error}</div>}
 
           <label className="plot-interest-label">
+            <span>Builder / Admin Name</span>
+            <input
+              type="text"
+              value={formState.name}
+              onChange={handleChange('name')}
+              className="panel-input"
+              required
+            />
+          </label>
+
+          <label className="plot-interest-label">
+            <span>Company Name</span>
+            <input
+              type="text"
+              value={formState.companyName}
+              onChange={handleChange('companyName')}
+              className="panel-input"
+              required
+            />
+          </label>
+
+          <label className="plot-interest-label">
             <span>Email Address</span>
             <input
               type="email"
               value={formState.email}
               onChange={handleChange('email')}
+              className="panel-input"
+              required
+            />
+          </label>
+
+          <label className="plot-interest-label">
+            <span>Phone Number</span>
+            <input
+              type="tel"
+              value={formState.phone}
+              onChange={handleChange('phone')}
               className="panel-input"
               required
             />

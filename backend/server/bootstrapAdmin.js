@@ -10,7 +10,7 @@ async function bootstrapAdmin() {
   const password = process.env.ADMIN_PASSWORD
   if (!email || !password) return
 
-  const hasAdmin = db.prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1").get()
+  const hasAdmin = db.prepare("SELECT id FROM users WHERE role = 'super_admin' LIMIT 1").get()
   if (hasAdmin) return
 
   const normalized = String(email).toLowerCase().trim()
@@ -18,13 +18,13 @@ async function bootstrapAdmin() {
   const hash = await bcrypt.hash(password, 10)
 
   if (existing) {
-    db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(existing.id)
-    console.log(`[bootstrap] Promoted existing user ${normalized} to admin`)
+    db.prepare("UPDATE users SET role = 'super_admin' WHERE id = ?").run(existing.id)
+    console.log(`[bootstrap] Promoted existing user ${normalized} to super_admin`)
     return
   }
 
-  db.prepare('INSERT INTO users (email, passwordHash, role) VALUES (?, ?, ?)').run(normalized, hash, 'admin')
-  console.log(`[bootstrap] Created admin user ${normalized}`)
+  db.prepare('INSERT INTO users (email, passwordHash, role) VALUES (?, ?, ?)').run(normalized, hash, 'super_admin')
+  console.log(`[bootstrap] Created super_admin user ${normalized}`)
 }
 
 module.exports = { bootstrapAdmin }

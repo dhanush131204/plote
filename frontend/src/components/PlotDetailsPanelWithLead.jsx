@@ -11,6 +11,30 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
   const [submitted, setSubmitted] = useState(false)
   const [createLead, { isLoading: loading }] = useCreateLeadMutation()
   const [error, setError] = useState('')
+  const [isSaved, setIsSaved] = useState(false)
+
+  useEffect(() => {
+    if (!plot?.id) return
+    const saved = JSON.parse(localStorage.getItem('savedPlots') || '[]')
+    setIsSaved(saved.some(p => p.id === plot.id))
+  }, [plot?.id])
+
+  const handleSavePlot = () => {
+    const saved = JSON.parse(localStorage.getItem('savedPlots') || '[]')
+    if (isSaved) {
+      const next = saved.filter(p => p.id !== plot.id)
+      localStorage.setItem('savedPlots', JSON.stringify(next))
+      setIsSaved(false)
+    } else {
+      saved.push({ ...plot, layoutName: layout?.name, layoutSlug: layout?.slug })
+      localStorage.setItem('savedPlots', JSON.stringify(saved))
+      setIsSaved(true)
+    }
+  }
+
+  const handleCompare = () => {
+    alert('Added to compare list!')
+  }
 
   const phaseInfo = layout?.phaseInfo || {}
   const contactPhone = phaseInfo.phone || phaseInfo.contactPhone || ''
@@ -46,13 +70,28 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
     }
     setError('')
     try {
-      await createLead({
+      const res = await createLead({
         layoutId: plot.layoutId,
         plotId: plot.id,
         customerName: customerName.trim(),
         contactNumber: contactNumber.trim(),
         customerEmail: customerEmail.trim(),
       }).unwrap()
+      
+      if (res.trackingId) {
+        const tracked = JSON.parse(localStorage.getItem('trackedLeads') || '[]')
+        // Prepend new tracking info
+        tracked.unshift({
+          trackingId: res.trackingId,
+          layoutName: layout?.name || 'Project',
+          plotNumber: plot.number,
+          layoutSlug: layout?.slug,
+          plotId: plot.id,
+          submittedDate: new Date().toISOString()
+        })
+        localStorage.setItem('trackedLeads', JSON.stringify(tracked))
+      }
+
       setSubmitted(true)
       setInterestModalOpen(false)
     } catch (err) {
@@ -206,55 +245,105 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
         }}
       >
         {variant === 'sidebar' ? (
-          <>
-            <div className="plot-detail-hero">
-              <div className="plot-detail-hero-top">
-                <span className={`plot-detail-status-pill status-${(plot.status || 'available').toLowerCase()}`}>
-                  {plot.status || 'Available'}
-                </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <span style={{ 
+                color: plot.status === 'Available' ? '#0a8870' : '#64748b', 
+                fontWeight: 700, 
+                fontSize: '0.875rem', 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.05em' 
+              }}>
+                {plot.status || 'Available'}
+              </span>
+              <h3 style={{ 
+                fontFamily: 'var(--font-display)', 
+                fontSize: '2.5rem', 
+                fontWeight: 800, 
+                margin: '0', 
+                lineHeight: 1 
+              }}>
+                {isBuilding ? 'Unit' : 'Plot'} <span style={{ color: '#1f2937' }}>{plot.number}</span>
+              </h3>
+              {isBuilding && (plot.floor != null || plot.tower || plot.beds != null) && (
+                <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>
+                  {plot.floor != null && <>Floor {plot.floor}</>}
+                  {plot.tower ? <> · Tower {plot.tower}</> : null}
+                  {plot.beds != null ? <> · {plot.beds} BR</> : null}
+                </p>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total area</span>
+                <span style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>{plot.areaCent} Cent</span>
+                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>~ {(plot.areaSqft || 0).toLocaleString()} sqft</span>
               </div>
-              <div className="plot-detail-title-block">
-                <span className="plot-detail-ghost" aria-hidden>
-                  {plot.number}
-                </span>
-                <h3 className="plot-detail-title">
-                  {isBuilding ? 'Unit' : 'Plot'}: <span className="plot-detail-title-num">{plot.number}</span>
-                </h3>
-                {isBuilding && (plot.floor != null || plot.tower || plot.beds != null) && (
-                  <p className="plot-detail-phase plot-detail-unit-meta">
-                    {plot.floor != null && <>Floor {plot.floor}</>}
-                    {plot.tower ? <> · Tower {plot.tower}</> : null}
-                    {plot.beds != null ? <> · {plot.beds} BR</> : null}
-                  </p>
-                )}
-                {layoutLabel && <p className="plot-detail-phase">{layoutLabel}</p>}
-                <p className="plot-detail-tagline">Use the buttons below to share or contact us, or submit your interest.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Facing</span>
+                <span style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>{plot.facing || 'N/A'}</span>
               </div>
             </div>
 
-            <div className="plot-detail-metrics" role="group" aria-label="Plot summary">
-              <div className="plot-detail-metric">
-                <span className="plot-detail-metric-label">Total area</span>
-                <span className="plot-detail-metric-value">
-                  {plot.areaCent} Cent
-                  <span className="plot-detail-metric-sub">~ {(plot.areaSqft || 0).toLocaleString()} sqft</span>
-                </span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Est. price</span>
+                <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>{formatPrice(plot.estimatedPrice)}</span>
               </div>
-              <div className="plot-detail-metric">
-                <span className="plot-detail-metric-label">Facing</span>
-                <span className="plot-detail-metric-value">{plot.facing || 'N/A'}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price / sqft</span>
+                <span style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>₹{(plot.pricePerSqft || 0).toLocaleString()}</span>
               </div>
             </div>
 
-            <div className="plot-detail-price-band">
-              <div className="plot-detail-price-row">
-                <span className="plot-detail-metric-label">Est. price</span>
-                <span className="plot-detail-price-main">{formatPrice(plot.estimatedPrice)}</span>
-              </div>
-              <div className="plot-detail-price-row plot-detail-price-row--sub">
-                <span className="plot-detail-metric-label">Price / sqft</span>
-                <span className="plot-detail-price-per">₹{(plot.pricePerSqft || 0).toLocaleString()}</span>
-              </div>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+              <button 
+                type="button" 
+                onClick={handleSavePlot} 
+                style={{ 
+                  flex: 1, 
+                  background: isSaved ? '#f0fdf4' : '#fff', 
+                  border: isSaved ? '1px solid #22c55e' : '1px solid #e2e8f0', 
+                  borderRadius: '0.75rem',
+                  padding: '0.75rem',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  color: isSaved ? '#16a34a' : '#334155',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {isSaved ? '💚 Saved' : '🤍 Save'}
+              </button>
+              <button 
+                type="button" 
+                onClick={handleCompare} 
+                style={{ 
+                  flex: 1, 
+                  background: '#fff', 
+                  border: '1px solid #e2e8f0', 
+                  borderRadius: '0.75rem',
+                  padding: '0.75rem',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  color: '#334155',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                ⚖️ Compare
+              </button>
             </div>
 
             <PlotQuickActions
@@ -265,12 +354,56 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
 
             <button
               type="button"
-              className="btn-panel-expand btn-submit-interest-trigger"
               onClick={() => setInterestModalOpen(true)}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                background: '#0a8870',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '0.75rem',
+                fontSize: '1rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                marginTop: '0.5rem',
+                boxShadow: '0 4px 12px rgba(10, 136, 112, 0.2)',
+                transition: 'all 0.2s ease'
+              }}
             >
               Submit interest
             </button>
-          </>
+
+            {layout?.plots?.length > 0 && (
+              <div style={{ marginTop: '1.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
+                <h4 style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '1rem', margin: 0 }}>
+                  Similar {isBuilding ? 'Units' : 'Plots'}
+                </h4>
+                <div style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.5rem', marginTop: '1rem' }}>
+                  {layout.plots
+                    .filter(p => p.id !== plot.id && p.status === 'Available' && Math.abs((p.estimatedPrice || 0) - (plot.estimatedPrice || 0)) < 500000)
+                    .slice(0, 3)
+                    .map(sim => (
+                      <div key={sim.id} style={{ 
+                        minWidth: '140px', 
+                        padding: '1rem', 
+                        flexShrink: 0,
+                        background: '#fff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '0.75rem',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                      }}>
+                        <p style={{ fontWeight: 700, fontSize: '0.95rem', margin: '0 0 0.25rem', color: '#0f172a' }}>{isBuilding ? 'Unit' : 'Plot'} {sim.number}</p>
+                        <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>{formatPrice(sim.estimatedPrice)}</p>
+                      </div>
+                    ))
+                  }
+                  {layout.plots.filter(p => p.id !== plot.id && p.status === 'Available' && Math.abs((p.estimatedPrice || 0) - (plot.estimatedPrice || 0)) < 500000).length === 0 && (
+                    <p style={{ fontSize: '0.85rem', color: '#64748b', fontStyle: 'italic', margin: 0 }}>No similar {isBuilding ? 'units' : 'plots'} available.</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <>
             <div className="plot-mobile-card-head">

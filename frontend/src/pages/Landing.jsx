@@ -7,7 +7,11 @@ export default function Landing() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (user) navigate(user.role === 'admin' ? '/dashboard' : '/buyer/projects', { replace: true })
+    if (user) {
+      if (user.role === 'super_admin') navigate('/platform/dashboard', { replace: true })
+      else if (user.role === 'admin') navigate('/dashboard', { replace: true })
+      else navigate('/buyer/projects', { replace: true })
+    }
   }, [user, navigate])
 
   const [email, setEmail] = useState('')
@@ -21,7 +25,9 @@ export default function Landing() {
     setLoading(true)
     try {
       const loggedInUser = await login(email, password)
-      navigate(loggedInUser.role === 'admin' ? '/dashboard' : '/buyer/projects')
+      if (loggedInUser.role === 'super_admin') navigate('/platform/dashboard')
+      else if (loggedInUser.role === 'admin') navigate('/dashboard')
+      else navigate('/buyer/projects')
     } catch (err) {
       setError(err.message || 'Something went wrong')
     } finally {
@@ -50,12 +56,12 @@ export default function Landing() {
           <form onSubmit={handleSubmit}>
             {error && <div className="landing-error">{error}</div>}
             <div className="landing-field">
-              <label htmlFor="landing-email">Email</label>
+              <label htmlFor="landing-email">Email or Username</label>
               <input
                 id="landing-email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
+                type="text"
+                autoComplete="username"
+                placeholder="you@example.com or admin"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

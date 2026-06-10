@@ -5,6 +5,13 @@ const { sendLeadWebhook } = require('../leadWebhook')
 const { throttle } = require('../throttle')
 const { authMiddleware } = require('../middleware/auth')
 
+function generateTrackingId() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let id = 'PV-';
+  for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
+  return id;
+}
+
 const router = express.Router()
 
 const postThrottle = throttle({ windowMs: 60_000, max: 60 })
@@ -17,6 +24,45 @@ const normalizeLeadDate = (value) => {
 
   return value
 }
+
+router.get('/track/:trackingId', async (req, res) => {
+  try {
+    const lead = db.prepare(`
+      SELECT l.*, layouts.name AS layoutName, layouts.slug AS layoutSlug 
+      FROM leads l 
+      JOIN layouts ON layouts.id = l.layoutId 
+      WHERE l.trackingId = ?
+    `).get(req.params.trackingId)
+    
+    if (!lead) return res.status(404).json({ error: 'Tracking ID not found' })
+
+    let meta = {}
+    try {
+      meta = lead.metadata ? JSON.parse(lead.metadata) : {}
+    } catch {
+      meta = {}
+    }
+
+    res.json({
+      id: lead.id,
+      trackingId: lead.trackingId,
+      layoutId: lead.layoutId,
+      layoutName: lead.layoutName,
+      layoutSlug: lead.layoutSlug,
+      plotId: lead.plotId,
+      unitId: lead.unitId || null,
+      unitFloor: meta.floor ?? null,
+      unitTower: meta.tower ?? null,
+      inventoryType: meta.inventoryType || null,
+      customerName: lead.customerName,
+      status: lead.status || 'new',
+      statusUpdatedAt: normalizeLeadDate(lead.statusUpdatedAt),
+      createdAt: normalizeLeadDate(lead.createdAt),
+    })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
 
 router.get('/me', authMiddleware, async (req, res) => {
   try {
@@ -95,10 +141,13 @@ router.post('/', postThrottle, async (req, res) => {
       unitId = String(plot.id ?? plot.number)
     }
 
+    const trackingId = generateTrackingId()
+
+    const createdAt = new Date().toISOString()
     const stmt = db.prepare(
-      'INSERT INTO leads (layoutId, plotId, customerName, contactNumber, metadata, unitId) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO leads (layoutId, plotId, customerName, contactNumber, customerEmail, trackingId, metadata, unitId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
-    stmt.run(layoutId, plotId, customerName, contactNumber, JSON.stringify(meta), unitId)
+    stmt.run(layoutId, plotId, customerName, contactNumber, emailTrim, trackingId, JSON.stringify(meta), unitId, createdAt)
     const lead = db.prepare('SELECT * FROM leads WHERE id = last_insert_rowid()').get()
 
     const owner = db.prepare('SELECT autoWebhookOnSubmit FROM users WHERE id = ?').get(layout.userId)
@@ -112,7 +161,7 @@ router.post('/', postThrottle, async (req, res) => {
       }
     }
 
-    res.status(201).json({ success: true, leadId: lead.id })
+    res.status(201).json({ success: true, leadId: lead.id, trackingId: lead.trackingId })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }

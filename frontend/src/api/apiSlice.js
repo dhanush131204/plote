@@ -65,6 +65,14 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['User'],
     }),
+    updateProfile: builder.mutation({
+      query: (profileData) => ({
+        url: '/api/auth/me',
+        method: 'PUT',
+        body: profileData,
+      }),
+      invalidatesTags: ['User'],
+    }),
 
     // Layout Endpoints
     getLayouts: builder.query({
@@ -170,6 +178,10 @@ export const apiSlice = createApi({
     }),
 
     // Admin Endpoints
+    getPlatformAnalytics: builder.query({
+      query: () => '/api/admin/analytics',
+      providesTags: ['User', 'Layout', 'Lead'],
+    }),
     getAdminUsers: builder.query({
       query: () => '/api/admin/users',
       providesTags: (result) =>
@@ -211,6 +223,13 @@ export const apiSlice = createApi({
         { type: 'User', id: 'LIST' },
       ],
     }),
+    deleteAdminUser: builder.mutation({
+      query: (id) => ({
+        url: `/api/admin/users/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'User', id: 'LIST' }],
+    }),
     pushLeadWebhook: builder.mutation({
       query: (leadId) => ({
         url: `/api/admin/leads/${leadId}/push-webhook`,
@@ -236,6 +255,9 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: [{ type: 'Lead', id: 'LIST' }],
     }),
+    trackLead: builder.query({
+      query: (trackingId) => `/api/leads/track/${trackingId}`,
+    }),
     postActivity: builder.mutation({
       query: (activityData) => ({
         url: '/api/activity',
@@ -251,6 +273,7 @@ export const {
   useGetMeQuery,
   useLoginMutation,
   useSignupMutation,
+  useUpdateProfileMutation,
   useGetLayoutsQuery,
   useGetLayoutByIdQuery,
   useGetLayoutBySlugQuery,
@@ -262,14 +285,17 @@ export const {
   useUploadFacadeImageMutation,
   useUploadFloorImageMutation,
   useUploadApartmentMediaMutation,
+  useGetPlatformAnalyticsQuery,
   useGetAdminUsersQuery,
   useGetAdminLeadsQuery,
   useGetMyLeadsQuery,
   useGetAdminActivityQuery,
   useCreateAdminUserMutation,
   useUpdateAdminUserMutation,
+  useDeleteAdminUserMutation,
   usePushLeadWebhookMutation,
   useUpdateLeadStatusMutation,
   useCreateLeadMutation,
+  useTrackLeadQuery,
   usePostActivityMutation,
 } = apiSlice

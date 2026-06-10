@@ -9,6 +9,13 @@ export default function PublicView() {
 
   if (loading) return <div className="app-loading">Loading...</div>
   if (!layout) return <div className="app-loading">Layout not found.</div>
-  if (layout.layoutKind === 'building') return <PublicBuildingView layout={layout} />
-  return <PublicPlotMapView layout={layout} />
+  return (
+    <div className="public-map-wrapper">
+      {layout.layoutKind === 'building' ? (
+        <PublicBuildingView layout={layout} />
+      ) : (
+        <PublicPlotMapView layout={layout} />
+      )}
+    </div>
+  )
 }

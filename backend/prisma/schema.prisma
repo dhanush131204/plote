@@ -12,7 +12,25 @@ model User {
   email               String   @unique
   passwordHash        String
   role                String   @default("admin")
+  name                String?
   companyName         String?
+  logo                String?
+  phone               String?
+  alternatePhone      String?
+  address             String?
+  city                String?
+  state               String?
+  country             String?
+  gst                 String?
+  rera                String?
+  website             String?
+  about               String?
+  facebook            String?
+  instagram           String?
+  linkedin            String?
+  youtube             String?
+  documents           String?
+  status              String   @default("active")
   autoWebhookOnSubmit Int      @default(0)
   createdAt           String?
   layouts             Layout[]
@@ -32,19 +50,22 @@ model Layout {
   webhookUrl     String?
   layoutKind     String          @default("plot")
   building       String?
+  status         String          @default("draft")
   createdAt      String?
+  activityEvents ActivityEvent[]
   user           User            @relation(fields: [userId], references: [id])
   leads          Lead[]
-  activityEvents ActivityEvent[]
 
+  @@index([slug], map: "idx_layouts_slug")
+  @@index([userId], map: "idx_layouts_userId")
   @@map("layouts")
 }
 
 model Lead {
-  id                 Int      @id @default(autoincrement())
+  id                 Int     @id @default(autoincrement())
   layoutId           Int
   plotId             Int
-  trackingId         String?  @unique
+  trackingId         String? @unique
   customerName       String
   contactNumber      String
   customerEmail      String?
@@ -52,23 +73,26 @@ model Lead {
   webhookDeliveredAt String?
   webhookLastError   String?
   unitId             String?
-  status             String   @default("new")
+  status             String  @default("new")
   statusUpdatedAt    String?
   createdAt          String?
-  layout             Layout   @relation(fields: [layoutId], references: [id])
+  layout             Layout  @relation(fields: [layoutId], references: [id])
 
+  @@index([layoutId], map: "idx_leads_layoutId")
   @@map("leads")
 }
 
 model ActivityEvent {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   layoutId  Int
   sessionId String
   eventType String
   payload   String?
   userAgent String?
   createdAt String?
-  layout    Layout   @relation(fields: [layoutId], references: [id])
+  layout    Layout  @relation(fields: [layoutId], references: [id])
 
+  @@index([sessionId], map: "idx_activity_session")
+  @@index([layoutId, createdAt], map: "idx_activity_layout_created")
   @@map("activity_events")
 }

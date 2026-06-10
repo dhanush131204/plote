@@ -145,13 +145,14 @@ function normalizeFloorEntry(f) {
   }
 }
 
+
+
 function parseBuildingInput(raw) {
   if (raw == null || raw === '') return null
   try {
     const obj = typeof raw === 'string' ? JSON.parse(raw) : raw
     if (!obj || typeof obj !== 'object') return null
-    const towers =
-      Array.isArray(obj.towers) && obj.towers.length
+    const towers = Array.isArray(obj.towers) && obj.towers.length
         ? obj.towers.map((t) => ({ id: String(t.id || 'A'), label: t.label != null ? String(t.label) : String(t.id || 'A') }))
         : [{ id: 'A', label: 'Tower A' }]
     const floors = Array.isArray(obj.floors) ? obj.floors.map(normalizeFloorEntry).filter(Boolean) : []
@@ -177,7 +178,7 @@ function slugify(str) {
 router.get('/by-slug/:slug', (req, res) => {
   try {
     const layout = db.prepare(
-      'SELECT id, name, slug, imagePath, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building FROM layouts WHERE slug = ?'
+      'SELECT id, name, slug, imagePath, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building, status FROM layouts WHERE slug = ?'
     ).get(req.params.slug)
     if (!layout) return res.status(404).json({ error: 'Layout not found' })
     res.json(parseLayout(layout))
@@ -194,7 +195,10 @@ async function getLayoutForUser(layoutId, userId) {
     select: { role: true }
   })
   if (!user) return null
-  return db.prepare('SELECT * FROM layouts WHERE id = ?').get(layoutId)
+  if (user.role === 'super_admin') {
+    return db.prepare('SELECT * FROM layouts WHERE id = ?').get(layoutId)
+  }
+  return db.prepare('SELECT * FROM layouts WHERE id = ? AND userId = ?').get(layoutId, userId)
 }
 
 router.get('/', async (req, res) => {
@@ -203,17 +207,25 @@ router.get('/', async (req, res) => {
       where: { id: Number(req.userId) },
       select: { role: true },
     })
-    const rows = db.prepare(
-      'SELECT id, name, slug, imagePath, layoutKind, building, plots, overlayConfig, phaseInfo, createdAt FROM layouts ORDER BY createdAt DESC'
-    ).all();
+    const isSuperAdmin = user?.role === 'super_admin';
+    let rows;
+    if (isSuperAdmin) {
+      rows = db.prepare(
+        'SELECT l.id, l.name, l.slug, l.imagePath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName FROM layouts l LEFT JOIN users u ON l.userId = u.id ORDER BY l.createdAt DESC'
+      ).all();
+    } else {
+      rows = db.prepare(
+        'SELECT l.id, l.name, l.slug, l.imagePath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName FROM layouts l LEFT JOIN users u ON l.userId = u.id WHERE l.userId = ? ORDER BY l.createdAt DESC'
+      ).all(req.userId);
+    }
 
     const layouts = rows.map((row) => {
-      const parsed = parseLayout({
-        ...row,
-        plots: row.plots || '[]',
-        overlayConfig: row.overlayConfig || '{}',
-        phaseInfo: row.phaseInfo || '{}',
-      })
+      const parsed = {
+        layoutKind: row.layoutKind || 'plot',
+        building: row.building ? JSON.parse(row.building) : null,
+        plots: row.plots ? JSON.parse(row.plots) : [],
+        phaseInfo: row.phaseInfo ? JSON.parse(row.phaseInfo) : {},
+      }
       const cardImagePath =
         parsed.layoutKind === 'building' && parsed.building?.facadeImagePath
           ? parsed.building.facadeImagePath
@@ -228,6 +240,10 @@ router.get('/', async (req, res) => {
         floors: parsed.building?.floors || [],
         phaseInfo: parsed.phaseInfo,
         createdAt: row.createdAt,
+        userId: row.userId,
+        status: row.status || 'draft',
+        companyName: row.companyName,
+        builderName: row.builderName,
       }
     })
     res.json(layouts)
@@ -262,9 +278,9 @@ function postLayoutHandler(req, res) {
     let imagePath = null
     if (req.file) {
       const stmt = db.prepare(
-        'INSERT INTO layouts (userId, name, slug, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO layouts (userId, name, slug, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       )
-      stmt.run(req.userId, layoutName, slug, '{}', '[]', '{}', null, 'plot', null)
+      stmt.run(req.userId, layoutName, slug, '{}', '[]', '{}', null, 'plot', null, 'draft')
       const layout = db.prepare('SELECT id FROM layouts WHERE id = last_insert_rowid()').get()
       const finalDir = path.join(uploadDir, String(layout.id))
       if (!fs.existsSync(finalDir)) fs.mkdirSync(finalDir, { recursive: true })
@@ -276,9 +292,9 @@ function postLayoutHandler(req, res) {
       return res.status(201).json(parseLayout(full))
     }
     const stmt = db.prepare(
-      'INSERT INTO layouts (userId, name, slug, imagePath, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO layouts (userId, name, slug, imagePath, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
-    stmt.run(req.userId, layoutName, slug, null, overlayDefault, '[]', '{}', null, layoutKind, buildingJson)
+    stmt.run(req.userId, layoutName, slug, null, overlayDefault, '[]', '{}', null, layoutKind, buildingJson, 'draft')
     const layout = db.prepare('SELECT * FROM layouts WHERE id = last_insert_rowid()').get()
     res.status(201).json(parseLayout(layout))
   } catch (err) {
@@ -323,40 +339,6 @@ router.post('/:id/convert-to-building', requireAdmin, async (req, res) => {
 
 router.put('/:id', requireAdmin, async (req, res) => {
   try {
-    const layout = await getLayoutForUser(req.params.id, req.userId)
-    if (!layout) return res.status(404).json({ error: 'Layout not found' })
-    const { name, slug, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building } = req.body
-    const updates = []
-    const values = []
-    if (name !== undefined) { updates.push('name = ?'); values.push(name) }
-    if (slug !== undefined) {
-      const s = String(slug).toLowerCase().replace(/[^a-z0-9-]/g, '-')
-      if (db.prepare('SELECT id FROM layouts WHERE slug = ? AND id != ?').get(s, req.params.id)) {
-        return res.status(400).json({ error: 'Slug already in use' })
-      }
-      updates.push('slug = ?')
-      values.push(s)
-    }
-    if (layoutKind !== undefined) {
-      const lk = String(layoutKind).toLowerCase() === 'building' ? 'building' : 'plot'
-      updates.push('layoutKind = ?')
-      values.push(lk)
-    }
-    if (building !== undefined) {
-      const bj = parseBuildingInput(building)
-      updates.push('building = ?')
-      values.push(bj)
-    }
-    if (overlayConfig !== undefined) { updates.push('overlayConfig = ?'); values.push(JSON.stringify(overlayConfig)) }
-    if (plots !== undefined) { updates.push('plots = ?'); values.push(JSON.stringify(plots)) }
-    if (phaseInfo !== undefined) { updates.push('phaseInfo = ?'); values.push(JSON.stringify(phaseInfo)) }
-    if (webhookUrl !== undefined) { updates.push('webhookUrl = ?'); values.push(webhookUrl || null) }
-    if (updates.length === 0) {
-      const l = db.prepare('SELECT * FROM layouts WHERE id = ?').get(req.params.id)
-      return res.json(parseLayout(l))
-    }
-    values.push(req.params.id)
-    db.prepare(`UPDATE layouts SET ${updates.join(', ')} WHERE id = ?`).run(...values)
     const updated = db.prepare('SELECT * FROM layouts WHERE id = ?').get(req.params.id)
     res.json(parseLayout(updated))
   } catch (err) {

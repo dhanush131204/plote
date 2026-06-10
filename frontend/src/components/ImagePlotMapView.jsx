@@ -70,7 +70,7 @@ export default function ImagePlotMapView({
   const mapContainer = (
     <div
       className={`image-plot-map-container ${calibrateMode ? 'calibrate-mode' : ''} ${useZoomLayout ? 'image-plot-map-container--zoom' : ''}`}
-      style={useZoomLayout ? { width: '100%', height: '100%' } : { aspectRatio: imageAspectRatio }}
+      style={useZoomLayout ? { maxWidth: '100%', maxHeight: '100%', position: 'relative', display: 'flex' } : { aspectRatio: imageAspectRatio, position: 'relative', width: '100%' }}
       onClick={handleContainerClick}
       role={calibrateMode ? 'button' : undefined}
       tabIndex={calibrateMode ? 0 : undefined}
@@ -85,13 +85,19 @@ export default function ImagePlotMapView({
       }
     >
       {imageSrc && (
-        <img src={imageSrc} alt="Plot layout" className="image-plot-map-img" onLoad={handleImageLoad} />
+        <img 
+          src={imageSrc} 
+          alt="Plot layout" 
+          className="image-plot-map-img" 
+          style={useZoomLayout ? { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', position: 'relative', width: 'auto', height: 'auto' } : undefined}
+          onLoad={handleImageLoad} 
+        />
       )}
       <svg
         className="image-plot-map-overlay-svg"
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
-        style={{ pointerEvents: calibrateMode ? 'none' : undefined }}
+        style={{ pointerEvents: calibrateMode ? 'none' : undefined, position: 'absolute', inset: 0, width: '100%', height: '100%' }}
       >
         {/* In calibrate mode: show already-calibrated polygons so user sees marked plots */}
         {calibrateMode &&
@@ -149,7 +155,7 @@ export default function ImagePlotMapView({
           className="image-plot-map-overlay-svg calib-markers"
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
-          style={{ pointerEvents: 'none' }}
+          style={{ pointerEvents: 'none', position: 'absolute', inset: 0, width: '100%', height: '100%' }}
         >
           <polygon
             points={calibPoints.map(([x, y]) => `${x},${y}`).join(' ')}
@@ -212,7 +218,7 @@ export default function ImagePlotMapView({
 
   const mapBlock =
     useZoomLayout ? (
-      <div className="image-plot-map-zoom-shell" style={{ aspectRatio: imageAspectRatio }}>
+      <div className="image-plot-map-zoom-shell" style={{ width: '100%', height: '100%', display: 'flex' }}>
         <TransformWrapper
           initialScale={1}
           minScale={0.5}

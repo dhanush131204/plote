@@ -83,3 +83,10 @@ On auto or manual push, the CRM URL receives JSON with `lead` (name, phone, emai
 In **Settings**, set **Contact phone** and **WhatsApp** (stored in `phaseInfo`). These power Call / WhatsApp on the public plot panel.
 
 Example `phaseInfo`: `{ "layoutName": "Phase I", "phone": "9876543210", "whatsapp": "919876543210" }`
+
+super admin email/passworde
+vishalcr.avy@gmail.com
+vishal
+
+admin
+admin@123

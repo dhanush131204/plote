@@ -32,68 +32,64 @@ export default function Dashboard() {
   return (
     <div className="dashboard-container">
       {/* Welcome Banner */}
-      <section className="welcome-banner">
-        <div className="welcome-content">
-          <p className="section-kicker">{isAdmin ? 'Admin studio' : 'Buyer space'}</p>
-          <h1 className="welcome-title">Welcome back, {user?.email?.split('@')[0]}</h1>
-          <p className="welcome-subtitle">Here's what's happening with your properties today.</p>
-        </div>
-        {isAdmin ? (
-          <div className="welcome-stats">
-            <div className="stat-badge">
-              <span className="stat-value">{(layouts || []).length}</span>
-              <span className="stat-label">Total Layouts</span>
-            </div>
-              <div className="stat-badge">
-                <span className="stat-value">{(layouts || []).filter(l => l?.layoutKind !== 'building').length}</span>
-                <span className="stat-label">Plot Maps</span>
-              </div>
-              <div className="stat-badge">
-                <span className="stat-value">{(layouts || []).filter(l => l?.layoutKind === 'building').length}</span>
-                <span className="stat-label">Buildings</span>
-              </div>
-              <div className="stat-badge">
-                <span className="stat-value">{leadsData?.total || 0}</span>
-                <span className="stat-label">Leads</span>
-              </div>
-          </div>
-        ) : (
-          <div className="welcome-stats">
-            <div className="stat-badge">
-              <span className="stat-value">{(layouts || []).length}</span>
-              <span className="stat-label">Total Projects</span>
-            </div>            
-          </div>
-        )}
+      <section className="dashboard-intro">
+        <h1>Welcome back, {user?.name || user?.email?.split('@')[0]}</h1>
+        <p>Here's your real estate portfolio overview at a glance.</p>
       </section>
+
+      {/* KPI Stats (Admin Only) */}
+      {isAdmin && (
+        <section className="premium-kpi-grid">
+          <div className="premium-stat-card">
+            <div className="premium-stat-header">
+              <span>Total Projects</span>
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+            </div>
+            <div className="premium-stat-value">{(layouts || []).length}</div>
+            <div><span className="premium-stat-trend positive">↑ Active</span></div>
+          </div>
+          <div className="premium-stat-card">
+            <div className="premium-stat-header">
+              <span>Plot Maps</span>
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            </div>
+            <div className="premium-stat-value">{(layouts || []).filter(l => l?.layoutKind !== 'building').length}</div>
+            <div><span className="premium-stat-trend neutral">Lands</span></div>
+          </div>
+          <div className="premium-stat-card">
+            <div className="premium-stat-header">
+              <span>Buildings</span>
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>
+            </div>
+            <div className="premium-stat-value">{(layouts || []).filter(l => l?.layoutKind === 'building').length}</div>
+            <div><span className="premium-stat-trend neutral">High-Rises</span></div>
+          </div>
+          <div className="premium-stat-card">
+            <div className="premium-stat-header">
+              <span>Total Leads</span>
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+            <div className="premium-stat-value">{leadsData?.total || 0}</div>
+            <div><span className="premium-stat-trend positive">↑ Trending</span></div>
+          </div>
+        </section>
+      )}
 
       {/* Quick Actions (Admin Only) */}
       {isAdmin && (
-        <section className="quick-actions-section">
-          <h2 className="section-title">Quick Actions</h2>
-          <div className="quick-actions-grid">
-            <button className="action-card" onClick={() => navigate('/create')}>
-              <div className="action-icon">🗺️</div>
-              <div className="action-text">
-                <h3>Create Plot Map</h3>
-                <p>Site plan & calibrate plots</p>
-              </div>
-            </button>
-            <button className="action-card" onClick={() => navigate('/create/building')}>
-              <div className="action-icon">🏢</div>
-              <div className="action-text">
-                <h3>Create Building</h3>
-                <p>Facade, floors, units</p>
-              </div>
-            </button>
-            <button className="action-card" onClick={() => navigate('/admin/leads')}>
-              <div className="action-icon">👥</div>
-              <div className="action-text">
-                <h3>View Leads</h3>
-                <p>Check interested buyers</p>
-              </div>
-            </button>
-          </div>
+        <section className="quick-actions-bar">
+          <button className="action-card" onClick={() => navigate('/create')}>
+            <div className="action-card-icon">🗺️</div>
+            <div>New Plot Map</div>
+          </button>
+          <button className="action-card" onClick={() => navigate('/create/building')}>
+            <div className="action-card-icon">🏢</div>
+            <div>New Building</div>
+          </button>
+          <button className="action-card" onClick={() => navigate('/admin/leads')}>
+            <div className="action-card-icon">👥</div>
+            <div>View Leads</div>
+          </button>
         </section>
       )}
 
@@ -128,42 +124,38 @@ export default function Dashboard() {
               const soldPlots = layout.soldPlots ?? plots.filter(p => p.status?.toLowerCase() === "sold").length;
 
               return (
-              <div key={layout.id} className="project-card">
-                <div className="project-card-image">
+              <div key={layout.id} className="project-card-premium">
+                <div className="project-card-img-wrap">
                   {layout.imagePath ? (
                     <img src={`${API_BASE}/uploads/${layout.imagePath}`} alt={layout.name} loading="lazy" />
                   ) : (
-                    <div className="project-card-placeholder">No Image</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)' }}>No Image</div>
                   )}
-                  <span className="project-badge">{layout.layoutKind === 'building' ? 'Building' : 'Plot Map'}</span>
+                  <span className={`project-card-status ${layout.status === 'published' ? 'published' : 'draft'}`}>{layout.status === 'published' ? 'Published' : 'Draft'}</span>
                 </div>
-                <div className="project-card-content">
-                  <h3 className="project-title">{layout.name}</h3>
-                  <div className="project-meta">
-                    <span className="project-meta-item">📍 {layout.location || 'Location not set'}</span>
-                    <div className="project-stats-summary" style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.85rem' }}>
-                      <span>Total: {totalPlots}</span>
-                      <span style={{ color: 'var(--color-available)' }}>Avail: {availablePlots}</span>
-                      <span style={{ color: 'var(--color-danger)' }}>Sold: {soldPlots}</span>
+                <div className="project-card-body">
+                  <div className="project-card-header">
+                    <h3>{layout.name}</h3>
+                    <p>{layout.layoutKind === 'building' ? 'Building Layout' : 'Plot Layout'}</p>
+                  </div>
+                  <div className="project-card-metrics">
+                    <div className="project-card-metric">
+                      <span className="project-card-metric-label">Total Units</span>
+                      <span className="project-card-metric-value">{totalPlots}</span>
+                    </div>
+                    <div className="project-card-metric">
+                      <span className="project-card-metric-label">Available</span>
+                      <span className="project-card-metric-value" style={{color: 'var(--color-available)'}}>{availablePlots}</span>
                     </div>
                   </div>
-                  <div className="project-card-actions">
-                    <button className="btn-primary" onClick={() => window.open(`/v/${layout.slug}`, '_blank')}>
-                      View
+                  <div className="project-card-actions-row">
+                    <button className="btn-secondary" style={{flex: 1}} onClick={() => window.open(`/v/${layout.slug}`, '_blank')}>
+                      View Public
                     </button>
                     {isAdmin && (
-                      <>
-                        <button className="btn-secondary" onClick={() => navigate(layout.layoutKind === 'building' ? `/layout/${layout.id}/edit/building` : `/layout/${layout.id}/edit`)}>
-                          Edit
-                        </button>
-                        <button className="btn-secondary btn-danger" onClick={async () => {
-                          if (window.confirm('Are you sure you want to delete this layout?')) {
-                            await deleteLayout(layout.id);
-                          }
-                        }}>
-                          Delete
-                        </button>
-                      </>
+                      <button className="btn-primary" style={{flex: 1}} onClick={() => navigate(layout.layoutKind === 'building' ? `/layout/${layout.id}/edit/building` : `/layout/${layout.id}/edit`)}>
+                        Edit
+                      </button>
                     )}
                   </div>
                 </div>
@@ -185,25 +177,39 @@ export default function Dashboard() {
               <p>No recent leads.</p>
             </div>
           ) : (
-            <div className="admin-table-wrap">
-              <table className="admin-table">
+            <div className="admin-table-wrap" style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+              <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{background: 'var(--color-bg-wash)'}}>
-                    <th>Date</th>
-                    <th>Name</th>
-                    <th>Project</th>
-                    <th>Contact</th>
+                  <tr style={{background: 'var(--color-bg-wash)', textAlign: 'left'}}>
+                    <th style={{ padding: '1rem' }}>Tracking ID</th>
+                    <th style={{ padding: '1rem' }}>Name</th>
+                    <th style={{ padding: '1rem' }}>Project</th>
+                    <th style={{ padding: '1rem' }}>Status</th>
+                    <th style={{ padding: '1rem' }}>Date</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(leadsData?.leads || []).slice(0, 5).map(l => (
+                  {(leadsData?.leads || []).slice(0, 5).map(l => {
+                    const lStatus = (l.status || 'new').toLowerCase();
+                    return (
                     <tr key={l.id}>
-                      <td>{formatDate(l.createdAt)}</td>
-                      <td style={{fontWeight: '500'}}>{l.customerName}</td>
-                      <td>{l.layoutName} - {l.unitId || l.plotId}</td>
-                      <td style={{color: 'var(--color-text-muted)'}}>{l.contactNumber}</td>
+                      <td className="admin-cell-mono">{l.trackingId || `PV-${l.id.toString().padStart(4, '0')}`}</td>
+                      <td>
+                        <div style={{fontWeight: 600}}>{l.customerName}</div>
+                        <div style={{fontSize: '0.8rem', color: 'var(--color-text-muted)'}}>{l.contactNumber}</div>
+                      </td>
+                      <td>
+                        <div>{l.layoutName}</div>
+                        <div style={{fontSize: '0.8rem', color: 'var(--color-text-muted)'}}>Unit/Plot {l.unitId || l.plotId}</div>
+                      </td>
+                      <td>
+                        <span className={`badge-status ${lStatus}`}>
+                          {lStatus.charAt(0).toUpperCase() + lStatus.slice(1)}
+                        </span>
+                      </td>
+                      <td style={{color: 'var(--color-text-muted)'}}>{formatDate(l.createdAt)}</td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>

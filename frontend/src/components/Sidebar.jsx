@@ -4,14 +4,20 @@ import { useAuth } from '../contexts/AuthContext';
 export default function Sidebar() {
   const { user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
+  
+  const isSuperAdmin = user?.role === 'super_admin';
 
   const adminLinks = [
     { to: '/dashboard', label: 'Dashboard' },
-    { to: '/projects', label: 'Projects' },
+    { to: '/projects', label: 'My Projects' },
     { to: '/admin/leads', label: 'Leads' },
-    { to: '/customers', label: 'Customers' },
-    { to: '/insights', label: 'Insights' },
-    { to: '/settings', label: 'Settings' },
+    { to: '/profile', label: 'Company Profile' },
+  ];
+
+  const superAdminLinks = [
+    { to: '/platform/dashboard', label: 'Dashboard' },
+    { to: '/platform/admins', label: 'Manage Builders' },
+    { to: '/platform/projects', label: 'Global Projects' },
   ];
 
   const buyerLinks = [
@@ -21,7 +27,7 @@ export default function Sidebar() {
     { to: '/buyer/profile', label: 'Profile' },
   ];
 
-  const links = isAdmin ? adminLinks : buyerLinks;
+  const links = isSuperAdmin ? superAdminLinks : (isAdmin ? adminLinks : buyerLinks);
 
   return (
     <aside className="app-sidebar">
@@ -31,20 +37,35 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        <div className="nav-group-title">{isAdmin ? 'Admin Studio' : 'Buyer Space'}</div>
+        <div className="nav-group-title">{isSuperAdmin ? 'Platform Management' : (isAdmin ? 'Builder Studio' : 'Buyer Space')}</div>
         {links.map((link) => (
           <NavLink key={link.to} to={link.to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             {link.label}
           </NavLink>
         ))}
+
+        {isAdmin && !isSuperAdmin && (
+          <>
+            <div className="nav-group-divider" />
+            <div className="nav-group-title">Quick Actions</div>
+            <NavLink to="/create" className={({ isActive }) => `nav-item nav-item--action ${isActive ? 'active' : ''}`}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Plot Map
+            </NavLink>
+            <NavLink to="/create/building" className={({ isActive }) => `nav-item nav-item--action ${isActive ? 'active' : ''}`}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Building
+            </NavLink>
+          </>
+        )}
       </nav>
 
       <div className="sidebar-footer">
         <div className="profile-card">
-          <div className="profile-avatar">{user?.email?.[0]?.toUpperCase()}</div>
+          <div className="profile-avatar">{(user?.name || user?.email)?.[0]?.toUpperCase()}</div>
           <div className="profile-info">
-            <span className="profile-name">{user?.email}</span>
-            <span className="profile-role">{isAdmin ? 'Admin' : 'Buyer'}</span>
+            <span className="profile-name">{user?.name || user?.email}</span>
+            <span className="profile-role">{isSuperAdmin ? 'Super Admin' : (isAdmin ? 'Builder' : 'Buyer')}</span>
           </div>
         </div>
         <button className="btn-logout" onClick={() => { logout(); navigate('/'); }}>

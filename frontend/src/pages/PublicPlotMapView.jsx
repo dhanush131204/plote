@@ -54,45 +54,39 @@ export default function PublicPlotMapView({ layout }) {
   const imageSrc = layout.imagePath ? `${API_BASE}/uploads/${layout.imagePath}` : null
 
   return (
-    <div className="app public-view-app">
-      <main className="main-content main-content--stack public-view-main">
-        <div className="plot-container plot-container--grow plot-container--public plot-container--replica">
-          {legendOpen && (
-            <div className="plot-legend-float" role="region" aria-label="Plot status legend">
-              <span className="legend-item available">Available</span>
-              <span className="legend-item booked">Booked</span>
-              <span className="legend-item sold">Sold</span>
-            </div>
-          )}
-          <ImagePlotMapView
-            imageSrc={imageSrc}
-            overlayConfig={layout.overlayConfig || {}}
-            plots={filteredPlots}
-            selectedPlot={selectedPlot}
-            onSelectPlot={setSelectedPlot}
-            emptyMessage={mapEmptyMessage}
-            zoomPanEnabled
-            detailsSide="left"
-            detailsSlot={
-              <PublicSidebar
-                layout={layout}
-                selectedPlot={selectedPlot}
-                filters={filters}
-                onFilterChange={(key, value) => setFilters((f) => ({ ...f, [key]: value }))}
-                onResetFilters={() => setFilters({ ...defaultPlotFilters })}
-                onZoomIn={() => setZoomInTrigger((n) => n + 1)}
-                onZoomOut={() => setZoomOutTrigger((n) => n + 1)}
-                onResetView={() => setResetZoomTrigger((n) => n + 1)}
-                legendOpen={legendOpen}
-                onToggleLegend={() => setLegendOpen((v) => !v)}
-              />
-            }
-            resetZoomTrigger={resetZoomTrigger}
-            zoomInTrigger={zoomInTrigger}
-            zoomOutTrigger={zoomOutTrigger}
-          />
-        </div>
-      </main>
+    <div className="interactive-sidebar-layout">
+      {/* Full-Screen Map Area */}
+      <div className="map-container">
+        <ImagePlotMapView
+          imageSrc={imageSrc}
+          overlayConfig={layout.overlayConfig || {}}
+          plots={filteredPlots}
+          selectedPlot={selectedPlot}
+          onSelectPlot={setSelectedPlot}
+          emptyMessage={mapEmptyMessage}
+          zoomPanEnabled
+          resetZoomTrigger={resetZoomTrigger}
+          zoomInTrigger={zoomInTrigger}
+          zoomOutTrigger={zoomOutTrigger}
+        />
+      </div>
+
+      {/* Permanent Right Sidebar */}
+      <aside className="sidebar-container">
+        <PublicSidebar
+          layout={layout}
+          selectedPlot={selectedPlot}
+          filters={filters}
+          onFilterChange={(key, value) => setFilters((f) => ({ ...f, [key]: value }))}
+          onResetFilters={() => setFilters({ ...defaultPlotFilters })}
+          onZoomIn={() => setZoomInTrigger((n) => n + 1)}
+          onZoomOut={() => setZoomOutTrigger((n) => n + 1)}
+          onResetView={() => setResetZoomTrigger((n) => n + 1)}
+          legendOpen={legendOpen}
+          onToggleLegend={() => setLegendOpen((v) => !v)}
+          onClearSelection={() => setSelectedPlot(null)}
+        />
+      </aside>
     </div>
   )
 }

@@ -48,26 +48,33 @@ export default function Leads() {
       {error && <div className="dashboard-error">{error}</div>}
 
       <section className="crm-section">
-        <div className="welcome-banner" style={{marginBottom: '2rem'}}>
-          <div className="welcome-content">
-            <h1 className="welcome-title">Leads Pipeline</h1>
-            <p className="welcome-subtitle">Manage your incoming inquiries and contacts.</p>
-          </div>
-          <div className="welcome-stats">
-            <div className="stat-badge">
-              <span className="stat-value">{leadsTotal}</span>
-              <span className="stat-label">Total Leads</span>
-            </div>
-            <div className="stat-badge">
-              <span className="stat-value" style={{color: 'var(--color-booked)'}}>{newLeadsCount}</span>
-              <span className="stat-label">New</span>
-            </div>
-            <div className="stat-badge">
-              <span className="stat-value" style={{color: 'var(--color-available)'}}>{contactedCount}</span>
-              <span className="stat-label">Contacted</span>
-            </div>
+        <div className="dashboard-intro" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
+          <div>
+            <h1 style={{fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem'}}>Leads Pipeline</h1>
+            <p style={{color: 'var(--color-text-muted)'}}>Manage your incoming inquiries and contacts.</p>
           </div>
         </div>
+
+        <section className="premium-kpi-grid" style={{marginBottom: '2rem'}}>
+          <div className="premium-stat-card">
+            <div className="premium-stat-header">
+              <span>Total Leads</span>
+            </div>
+            <div className="premium-stat-value">{leadsTotal}</div>
+          </div>
+          <div className="premium-stat-card">
+            <div className="premium-stat-header">
+              <span>New</span>
+            </div>
+            <div className="premium-stat-value" style={{color: 'var(--color-booked)'}}>{newLeadsCount}</div>
+          </div>
+          <div className="premium-stat-card">
+            <div className="premium-stat-header">
+              <span>Contacted</span>
+            </div>
+            <div className="premium-stat-value" style={{color: 'var(--color-available)'}}>{contactedCount}</div>
+          </div>
+        </section>
 
         {leads.length === 0 ? (
             <div className="empty-state-premium">
@@ -90,19 +97,23 @@ export default function Leads() {
                 </tr>
               </thead>
               <tbody>
-                {leads.map((l) => (
-                  <tr key={l.id} style={{borderTop: '1px solid var(--color-border)'}}>
-                    <td style={{padding: '1rem'}}>{formatDate(l.createdAt)}</td>
-                    <td style={{padding: '1rem', fontWeight: '500'}}>{l.layoutName}</td>
+                {leads.map((l) => {
+                  const lStatus = (l.status || 'new').toLowerCase();
+                  return (
+                  <tr key={l.id} style={{borderTop: '1px solid var(--color-border)', background: 'var(--color-surface)', transition: 'background 0.2s'}}>
+                    <td style={{padding: '1rem', color: 'var(--color-text-muted)'}}>{formatDate(l.createdAt)}</td>
+                    <td style={{padding: '1rem', fontWeight: '600'}}>{l.layoutName}</td>
                     <td style={{padding: '1rem'}}>{l.unitId || l.plotId} {l.unitTower ? `(${l.unitTower})` : ''}</td>
-                    <td style={{padding: '1rem', fontWeight: '500'}}>{l.customerName}</td>
-                    <td style={{padding: '1rem', color: 'var(--color-text-muted)', fontSize: '0.875rem'}}>
+                    <td style={{padding: '1rem'}}>
+                      <div style={{fontWeight: 600}}>{l.customerName}</div>
+                    </td>
+                    <td style={{padding: '1rem'}}>
                       <div>{l.contactNumber}</div>
-                      <div>{l.customerEmail}</div>
+                      <div style={{color: 'var(--color-text-muted)', fontSize: '0.85rem'}}>{l.customerEmail}</div>
                     </td>
                     <td style={{padding: '1rem'}}>
                       <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
-                        <select value={l.status || 'new'} onChange={async (e) => {
+                        <select value={lStatus} onChange={async (e) => {
                           setError(''); setStatusMsg(''); setUpdatingId(l.id);
                           try {
                             await updateLeadStatus({ id: l.id, status: e.target.value }).unwrap();
@@ -113,14 +124,13 @@ export default function Leads() {
                             setUpdatingId(null);
                             setTimeout(() => setStatusMsg(''), 3000);
                           }
-                        }} disabled={updatingId===l.id} style={{padding: '0.25rem', borderRadius: '6px'}}>
+                        }} disabled={updatingId===l.id} style={{padding: '0.4rem 0.5rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', outline: 'none'}}>
                           <option value="new">New</option>
                           <option value="pending">Pending</option>
                           <option value="approved">Approved</option>
                           <option value="rejected">Rejected</option>
+                          <option value="sold">Sold</option>
                         </select>
-                        {l.statusUpdatedAt && <div style={{fontSize: '0.75rem', color: 'var(--color-text-muted)'}}>Updated {new Date(l.statusUpdatedAt).toLocaleString()}</div>}
-                        {statusMsg && updatingId===null && <div className="dashboard-success">{statusMsg}</div>}
                       </div>
                     </td>
                     <td style={{padding: '1rem', textAlign: 'right'}}>
@@ -129,7 +139,7 @@ export default function Leads() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>

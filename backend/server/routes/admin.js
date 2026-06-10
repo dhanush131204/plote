@@ -1,8 +1,11 @@
 const express = require('express')
 const bcrypt = require('bcrypt')
+const fs = require('fs')
+const path = require('path')
 const prisma = require('../prisma')
+const db = require('../db')
 const { authMiddleware } = require('../middleware/auth')
-const { requireAdmin } = require('../middleware/admin')
+const { requireAdmin, requireSuperAdmin } = require('../middleware/admin')
 const { sendLeadWebhook } = require('../leadWebhook')
 
 const router = express.Router()
@@ -19,7 +22,7 @@ const normalizeLeadDate = (value) => {
 router.use(authMiddleware)
 router.use(requireAdmin)
 
-router.get('/users', async (req, res) => {
+router.get('/users', requireSuperAdmin, async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
@@ -27,24 +30,39 @@ router.get('/users', async (req, res) => {
         id: true,
         email: true,
         role: true,
+        status: true,
+        name: true,
+        phone: true,
+        companyName: true,
         autoWebhookOnSubmit: true,
         createdAt: true,
-      },
+        _count: {
+          select: { layouts: true }
+        }
+      }
     })
-    res.json(
-      users.map((u) => ({
+    const usersWithStats = await Promise.all(users.map(async u => {
+      const leadsCount = await prisma.lead.count({
+        where: { layout: { userId: u.id } }
+      })
+      return {
         ...u,
+        totalLayouts: u._count.layouts,
+        totalLeads: leadsCount,
         autoWebhookOnSubmit: Boolean(u.autoWebhookOnSubmit),
-      }))
-    )
+      }
+    }))
+
+    res.json(usersWithStats)
   } catch (err) {
-    res.status(500).json({ error: 'Server error' })
+    console.error('Error fetching users:', err)
+    res.status(500).json({ error: err.message || 'Server error' })
   }
 })
 
-router.post('/users', async (req, res) => {
+router.post('/users', requireSuperAdmin, async (req, res) => {
   try {
-    const { email, password, role, autoWebhookOnSubmit } = req.body
+    const { email, password, role, autoWebhookOnSubmit, companyName, name, phone } = req.body
     if (!email || !password) {
       return res.status(400).json({ error: 'email and password required' })
     }
@@ -56,6 +74,9 @@ router.post('/users', async (req, res) => {
         email: String(email).toLowerCase().trim(),
         passwordHash: hash,
         role: nextRole,
+        name: name || null,
+        phone: phone || null,
+        companyName: companyName || null,
         autoWebhookOnSubmit: aw,
       },
     })
@@ -74,72 +95,104 @@ router.post('/users', async (req, res) => {
   }
 })
 
-router.patch('/users/:id', async (req, res) => {
+router.patch('/users/:id', requireSuperAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id)
     if (!id) return res.status(400).json({ error: 'Invalid id' })
-    const target = await prisma.user.findUnique({
-      where: { id },
-    })
-    if (!target) return res.status(404).json({ error: 'User not found' })
 
-    const { email, role, autoWebhookOnSubmit, password } = req.body
-    const dataObj = {}
-
-    if (email !== undefined) {
-      const nextEmail = String(email).toLowerCase().trim()
-      if (!nextEmail.includes('@')) {
-        return res.status(400).json({ error: 'Valid email required' })
-      }
-      const taken = await prisma.user.findFirst({
-        where: { email: nextEmail, NOT: { id } },
-      })
-      if (taken) return res.status(400).json({ error: 'Email already in use' })
-      dataObj.email = nextEmail
-    }
-
-    if (role !== undefined) {
-      const nextRole = String(role) === 'admin' ? 'admin' : 'user'
-      if (target.role === 'admin' && nextRole === 'user') {
-        const adminCount = await prisma.user.count({
-          where: { role: 'admin' },
-        })
-        if (adminCount <= 1) {
-          return res.status(400).json({ error: 'Cannot remove the last administrator' })
-        }
-      }
-      dataObj.role = nextRole
-    }
-
+    const { role, autoWebhookOnSubmit, status, companyName } = req.body
+    const updateData = {}
+    if (role !== undefined) updateData.role = role
+    if (status !== undefined) updateData.status = status
+    if (companyName !== undefined) updateData.companyName = companyName
     if (autoWebhookOnSubmit !== undefined) {
-      dataObj.autoWebhookOnSubmit = autoWebhookOnSubmit ? 1 : 0
-    }
-    if (password !== undefined && String(password).trim() !== '') {
-      if (String(password).length < 6) {
-        return res.status(400).json({ error: 'Password must be at least 6 characters' })
-      }
-      const hash = await bcrypt.hash(String(password), 10)
-      dataObj.passwordHash = hash
+      updateData.autoWebhookOnSubmit = autoWebhookOnSubmit ? 1 : 0
     }
 
-    if (Object.keys(dataObj).length === 0) {
-      const u = await prisma.user.findUnique({
-        where: { id },
-        select: { id: true, email: true, role: true, autoWebhookOnSubmit: true, createdAt: true },
-      })
-      return res.json({ ...u, autoWebhookOnSubmit: Boolean(u.autoWebhookOnSubmit) })
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: 'No fields to update' })
     }
 
-    const u = await prisma.user.update({
+    const updated = await prisma.user.update({
       where: { id },
-      data: dataObj,
-      select: { id: true, email: true, role: true, autoWebhookOnSubmit: true, createdAt: true },
+      data: updateData,
     })
-    res.json({ ...u, autoWebhookOnSubmit: Boolean(u.autoWebhookOnSubmit) })
+    res.json(updated)
   } catch (err) {
-    if (err.code === 'P2002') {
-      return res.status(400).json({ error: 'Email already registered' })
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.delete('/users/:id', requireSuperAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!id) return res.status(400).json({ error: 'Invalid id' })
+
+    const user = await prisma.user.findUnique({ where: { id } })
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    // Fetch all layouts for this user
+    const layouts = await prisma.layout.findMany({ where: { userId: id } })
+
+    for (const layout of layouts) {
+      // Delete leads & events
+      await prisma.lead.deleteMany({ where: { layoutId: layout.id } })
+      await prisma.activityEvent.deleteMany({ where: { layoutId: layout.id } })
+      
+      // Delete filesystem dirs
+      const imgDir = path.join(__dirname, '..', '..', 'uploads', String(layout.id))
+      if (fs.existsSync(imgDir)) fs.rmSync(imgDir, { recursive: true })
+      const aptDir = path.join(__dirname, '..', '..', 'uploads', 'Apartment', String(layout.id))
+      if (fs.existsSync(aptDir)) fs.rmSync(aptDir, { recursive: true })
     }
+
+    // Delete the layouts
+    await prisma.layout.deleteMany({ where: { userId: id } })
+
+    // Deleting the user:
+    await prisma.user.delete({ where: { id } })
+    res.json({ success: true })
+  } catch (err) {
+    console.error('Delete user error:', err)
+    res.status(500).json({ error: 'Failed to delete user. Please check server logs.' })
+  }
+})
+
+router.get('/analytics', requireSuperAdmin, async (req, res) => {
+  try {
+    const totalAdmins = await prisma.user.count({ where: { role: 'admin' } })
+    const totalProjects = await prisma.layout.count()
+    const totalPlotMaps = await prisma.layout.count({ where: { layoutKind: 'plot' } })
+    const totalBuildings = await prisma.layout.count({ where: { layoutKind: 'building' } })
+    const totalLeads = await prisma.lead.count()
+    const convertedLeads = await prisma.lead.count({ where: { status: 'sold' } })
+    
+    const conversionRate = totalLeads > 0 ? ((convertedLeads / totalLeads) * 100).toFixed(2) : 0
+
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    const isoDate = thirtyDaysAgo.toISOString()
+
+    const recentLeads = await prisma.lead.count({
+      where: { createdAt: { gte: isoDate } }
+    })
+
+    const recentProjects = await prisma.layout.count({
+      where: { createdAt: { gte: isoDate } }
+    })
+
+    res.json({
+      totalAdmins,
+      totalProjects,
+      totalPlotMaps,
+      totalBuildings,
+      totalLeads,
+      convertedLeads,
+      conversionRate,
+      recentLeads,
+      recentProjects
+    })
+  } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -151,7 +204,21 @@ router.get('/leads', async (req, res) => {
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50))
     const offset = (page - 1) * limit
 
-    const whereObj = layoutId ? { layoutId } : {}
+    const user = await prisma.user.findUnique({
+      where: { id: Number(req.userId) },
+      select: { role: true },
+    })
+    const isSuperAdmin = user?.role === 'super_admin'
+
+    let whereObj = {}
+    if (layoutId) {
+      whereObj.layoutId = layoutId
+    }
+    
+    if (!isSuperAdmin) {
+      whereObj.layout = { userId: req.userId }
+    }
+
     const total = await prisma.lead.count({ where: whereObj })
     const rows = await prisma.lead.findMany({
       where: whereObj,
@@ -204,7 +271,7 @@ router.patch('/leads/:id/status', async (req, res) => {
     const id = Number(req.params.id)
     if (!id) return res.status(400).json({ error: 'Invalid id' })
     const { status } = req.body
-    const allowed = ['new', 'pending', 'approved', 'rejected']
+    const allowed = ['new', 'pending', 'approved', 'rejected', 'sold']
     if (!status || !allowed.includes(String(status))) {
       return res.status(400).json({ error: 'Invalid status' })
     }
@@ -252,9 +319,19 @@ router.get('/activity', async (req, res) => {
     const sessionId = req.query.sessionId ? String(req.query.sessionId).slice(0, 64) : undefined
     const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100))
 
+    const user = await prisma.user.findUnique({
+      where: { id: Number(req.userId) },
+      select: { role: true },
+    })
+    const isSuperAdmin = user?.role === 'super_admin'
+
     const whereObj = {}
     if (layoutId) whereObj.layoutId = layoutId
     if (sessionId) whereObj.sessionId = sessionId
+    
+    if (!isSuperAdmin) {
+      whereObj.layout = { userId: req.userId }
+    }
 
     const rows = await prisma.activityEvent.findMany({
       where: whereObj,
