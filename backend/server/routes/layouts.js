@@ -92,7 +92,7 @@ const apartmentMediaUpload = multer({
           : /^image\/webp/.test(file.mimetype)
             ? 'webp'
             : 'png'
-      cb(null, `f-${floorId}-${configId}.${ext}`)
+      cb(null, `f-${floorId}-${configId}-${Date.now()}.${ext}`)
     },
   }),
   limits: { fileSize: 100 * 1024 * 1024 },
@@ -122,11 +122,13 @@ function normalizeConfigEntry(c) {
     id,
     label: c.label != null ? String(c.label) : id,
     imagePath: c.imagePath != null ? String(c.imagePath) : null,
+    images: Array.isArray(c.images) ? c.images.map(String) : (c.imagePath ? [String(c.imagePath)] : []),
     videoPath: c.videoPath != null ? String(c.videoPath) : null,
     areaSqft: typeof c.areaSqft === 'number' ? c.areaSqft : (parseFloat(c.areaSqft) || 0),
     areaSqm: typeof c.areaSqm === 'number' ? c.areaSqm : (parseFloat(c.areaSqm) || 0),
     pricePerSqft: typeof c.pricePerSqft === 'number' ? c.pricePerSqft : (parseInt(c.pricePerSqft, 10) || 0),
     description: c.description != null ? String(c.description) : null,
+    rooms: c.rooms && typeof c.rooms === 'object' ? c.rooms : {},
   }
 }
 
@@ -211,11 +213,11 @@ router.get('/', async (req, res) => {
     let rows;
     if (isSuperAdmin) {
       rows = db.prepare(
-        'SELECT l.id, l.name, l.slug, l.imagePath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName FROM layouts l LEFT JOIN users u ON l.userId = u.id ORDER BY l.createdAt DESC'
+        'SELECT l.id, l.name, l.slug, l.imagePath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName, u.role as builderRole FROM layouts l LEFT JOIN users u ON l.userId = u.id ORDER BY l.createdAt DESC'
       ).all();
     } else {
       rows = db.prepare(
-        'SELECT l.id, l.name, l.slug, l.imagePath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName FROM layouts l LEFT JOIN users u ON l.userId = u.id WHERE l.userId = ? ORDER BY l.createdAt DESC'
+        'SELECT l.id, l.name, l.slug, l.imagePath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName, u.role as builderRole FROM layouts l LEFT JOIN users u ON l.userId = u.id WHERE l.userId = ? ORDER BY l.createdAt DESC'
       ).all(req.userId);
     }
 
@@ -242,8 +244,8 @@ router.get('/', async (req, res) => {
         createdAt: row.createdAt,
         userId: row.userId,
         status: row.status || 'draft',
-        companyName: row.companyName,
-        builderName: row.builderName,
+        companyName: row.builderRole === 'super_admin' ? 'Super Admin' : row.companyName,
+        builderName: row.builderRole === 'super_admin' ? 'Super Admin' : row.builderName,
       }
     })
     res.json(layouts)
@@ -278,9 +280,9 @@ function postLayoutHandler(req, res) {
     let imagePath = null
     if (req.file) {
       const stmt = db.prepare(
-        'INSERT INTO layouts (userId, name, slug, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO layouts (userId, name, slug, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       )
-      stmt.run(req.userId, layoutName, slug, '{}', '[]', '{}', null, 'plot', null, 'draft')
+      stmt.run(req.userId, layoutName, slug, '{}', '[]', '{}', null, 'plot', null, 'draft', new Date().toISOString())
       const layout = db.prepare('SELECT id FROM layouts WHERE id = last_insert_rowid()').get()
       const finalDir = path.join(uploadDir, String(layout.id))
       if (!fs.existsSync(finalDir)) fs.mkdirSync(finalDir, { recursive: true })
@@ -292,9 +294,9 @@ function postLayoutHandler(req, res) {
       return res.status(201).json(parseLayout(full))
     }
     const stmt = db.prepare(
-      'INSERT INTO layouts (userId, name, slug, imagePath, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO layouts (userId, name, slug, imagePath, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
-    stmt.run(req.userId, layoutName, slug, null, overlayDefault, '[]', '{}', null, layoutKind, buildingJson, 'draft')
+    stmt.run(req.userId, layoutName, slug, null, overlayDefault, '[]', '{}', null, layoutKind, buildingJson, 'draft', new Date().toISOString())
     const layout = db.prepare('SELECT * FROM layouts WHERE id = last_insert_rowid()').get()
     res.status(201).json(parseLayout(layout))
   } catch (err) {
@@ -339,10 +341,66 @@ router.post('/:id/convert-to-building', requireAdmin, async (req, res) => {
 
 router.put('/:id', requireAdmin, async (req, res) => {
   try {
-    const updated = db.prepare('SELECT * FROM layouts WHERE id = ?').get(req.params.id)
+    const layout = await getLayoutForUser(req.params.id, req.userId)
+    if (!layout) return res.status(404).json({ error: 'Layout not found' })
+
+    const { name, slug, layoutKind, building, overlayConfig, plots, phaseInfo, webhookUrl, status } = req.body || {}
+
+    const nameVal = name !== undefined ? name : layout.name
+    let slugVal = slug !== undefined ? slug : layout.slug
+    if (slugVal && slugVal !== layout.slug) {
+      slugVal = slugify(slugVal).toLowerCase().replace(/[^a-z0-9-]/g, '-')
+      if (db.prepare('SELECT id FROM layouts WHERE slug = ? AND id != ?').get(slugVal, layout.id)) {
+        slugVal = `${slugVal}-${Date.now()}`
+      }
+    }
+    const layoutKindVal = layoutKind !== undefined ? layoutKind : (layout.layoutKind || 'plot')
+    
+    let buildingVal = layout.building
+    if (building !== undefined) {
+      if (layoutKindVal === 'building') {
+        buildingVal = parseBuildingInput(building) || defaultBuildingJson()
+      } else {
+        buildingVal = null
+      }
+    }
+
+    const overlayConfigVal = overlayConfig !== undefined 
+      ? (typeof overlayConfig === 'object' ? JSON.stringify(overlayConfig) : overlayConfig)
+      : layout.overlayConfig
+
+    const plotsVal = plots !== undefined
+      ? (typeof plots === 'object' ? JSON.stringify(plots) : plots)
+      : layout.plots
+
+    const phaseInfoVal = phaseInfo !== undefined
+      ? (typeof phaseInfo === 'object' ? JSON.stringify(phaseInfo) : phaseInfo)
+      : layout.phaseInfo
+
+    const webhookUrlVal = webhookUrl !== undefined ? webhookUrl : layout.webhookUrl
+    const statusVal = status !== undefined ? status : layout.status
+
+    db.prepare(`
+      UPDATE layouts 
+      SET name = ?, slug = ?, layoutKind = ?, building = ?, overlayConfig = ?, plots = ?, phaseInfo = ?, webhookUrl = ?, status = ?
+      WHERE id = ?
+    `).run(
+      nameVal, 
+      slugVal, 
+      layoutKindVal, 
+      buildingVal, 
+      overlayConfigVal, 
+      plotsVal, 
+      phaseInfoVal, 
+      webhookUrlVal, 
+      statusVal, 
+      layout.id
+    )
+
+    const updated = db.prepare('SELECT * FROM layouts WHERE id = ?').get(layout.id)
     res.json(parseLayout(updated))
   } catch (err) {
-    res.status(500).json({ error: 'Server error' })
+    res.status(500).json({ error: err.message || 'Server error' })
   }
 })
 
@@ -460,8 +518,22 @@ router.put('/:id/apartment-media', requireAdmin, apartmentMediaUpload.single('fi
       cidx = configs.length - 1
     }
     const cfg = { ...configs[cidx] }
-    if (kind === 'video') cfg.videoPath = relPath
-    else cfg.imagePath = relPath
+    const roomId = String(req.query?.roomId || req.body?.roomId || '').replace(/[^a-zA-Z0-9_-]/g, '')
+    if (roomId) {
+      if (!cfg.rooms) cfg.rooms = {}
+      cfg.rooms[roomId] = relPath
+    }
+    if (kind === 'video') {
+      cfg.videoPath = relPath
+    } else {
+      cfg.imagePath = relPath
+      if (!Array.isArray(cfg.images)) {
+        cfg.images = cfg.imagePath ? [cfg.imagePath] : []
+      }
+      if (!cfg.images.includes(relPath)) {
+        cfg.images.push(relPath)
+      }
+    }
     configs[cidx] = cfg
     floor.configurations = configs
     floors[idx] = floor
@@ -480,14 +552,12 @@ router.put('/:id/apartment-media', requireAdmin, apartmentMediaUpload.single('fi
 
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
-    const layout = await getLayoutForUser(req.params.id, req.userId)
-    if (!layout) return res.status(404).json({ error: 'Layout not found' })
     db.prepare('DELETE FROM leads WHERE layoutId = ?').run(req.params.id)
     db.prepare('DELETE FROM activity_events WHERE layoutId = ?').run(req.params.id)
     db.prepare('DELETE FROM layouts WHERE id = ?').run(req.params.id)
-    const imgDir = path.join(uploadDir, String(layout.id))
+    const imgDir = path.join(uploadDir, String(req.params.id))
     if (fs.existsSync(imgDir)) fs.rmSync(imgDir, { recursive: true })
-    const aptDir = path.join(uploadDir, 'Apartment', String(layout.id))
+    const aptDir = path.join(uploadDir, 'Apartment', String(req.params.id))
     if (fs.existsSync(aptDir)) fs.rmSync(aptDir, { recursive: true })
     res.json({ success: true })
   } catch (err) {

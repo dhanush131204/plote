@@ -161,6 +161,8 @@ router.delete('/users/:id', requireSuperAdmin, async (req, res) => {
 router.get('/analytics', requireSuperAdmin, async (req, res) => {
   try {
     const totalAdmins = await prisma.user.count({ where: { role: 'admin' } })
+    const activeAdmins = await prisma.user.count({ where: { role: 'admin', status: 'active' } })
+    const disabledAdmins = await prisma.user.count({ where: { role: 'admin', status: { not: 'active' } } })
     const totalProjects = await prisma.layout.count()
     const totalPlotMaps = await prisma.layout.count({ where: { layoutKind: 'plot' } })
     const totalBuildings = await prisma.layout.count({ where: { layoutKind: 'building' } })
@@ -183,6 +185,8 @@ router.get('/analytics', requireSuperAdmin, async (req, res) => {
 
     res.json({
       totalAdmins,
+      activeAdmins,
+      disabledAdmins,
       totalProjects,
       totalPlotMaps,
       totalBuildings,
@@ -242,8 +246,8 @@ router.get('/leads', async (req, res) => {
       return {
         id: r.id,
         layoutId: r.layoutId,
-        layoutName: r.layout.name,
-        layoutSlug: r.layout.slug,
+        layoutName: r.layout?.name || 'Deleted Project',
+        layoutSlug: r.layout?.slug || '',
         plotId: r.plotId,
         unitId: r.unitId || null,
         unitFloor: meta.floor ?? null,
@@ -262,6 +266,7 @@ router.get('/leads', async (req, res) => {
 
     res.json({ leads, total, page, limit })
   } catch (err) {
+    console.error("GET /admin/leads error:", err)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -276,7 +281,10 @@ router.patch('/leads/:id/status', async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' })
     }
 
-    const lead = await prisma.lead.findUnique({ where: { id } })
+    const lead = await prisma.lead.findUnique({ 
+      where: { id },
+      include: { layout: true }
+    })
     if (!lead) return res.status(404).json({ error: 'Lead not found' })
 
     const updated = await prisma.lead.update({
@@ -284,12 +292,44 @@ router.patch('/leads/:id/status', async (req, res) => {
       data: { status: String(status), statusUpdatedAt: new Date().toISOString() },
     })
 
+    if (lead.layout) {
+      let plotsList = []
+      try {
+        plotsList = lead.layout.plots ? JSON.parse(lead.layout.plots) : []
+      } catch (e) {
+        plotsList = []
+      }
+
+      let plotUpdated = false
+      const mappedPlots = plotsList.map(p => {
+        if (String(p.id) === String(lead.plotId) || String(p.number) === String(lead.plotId)) {
+          plotUpdated = true
+          if (status === 'sold') {
+            return { ...p, status: 'Sold' }
+          } else if (status === 'approved' || status === 'pending') {
+            return { ...p, status: 'Booked' }
+          } else {
+            return { ...p, status: 'Available' }
+          }
+        }
+        return p
+      })
+
+      if (plotUpdated) {
+        await prisma.layout.update({
+          where: { id: lead.layoutId },
+          data: { plots: JSON.stringify(mappedPlots) }
+        })
+      }
+    }
+
     res.json({ success: true, lead: {
       id: updated.id,
       status: updated.status,
       statusUpdatedAt: updated.statusUpdatedAt,
     } })
   } catch (err) {
+    console.error("PATCH /leads/:id/status error:", err)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -312,6 +352,39 @@ router.post('/leads/:id/push-webhook', async (req, res) => {
     res.status(500).json({ error: err.message || 'Server error' })
   }
 })
+
+router.delete('/leads/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!id) return res.status(400).json({ error: 'Invalid id' })
+
+    const user = await prisma.user.findUnique({
+      where: { id: Number(req.userId) },
+      select: { role: true },
+    })
+    const isSuperAdmin = user?.role === 'super_admin'
+
+    const lead = await prisma.lead.findUnique({
+      where: { id },
+      include: { layout: true }
+    })
+    if (!lead) return res.status(404).json({ error: 'Lead not found' })
+
+    if (!isSuperAdmin && lead.layout.userId !== req.userId) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+
+    await prisma.lead.delete({
+      where: { id }
+    })
+
+    res.json({ success: true })
+  } catch (err) {
+    console.error('Delete lead error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 
 router.get('/activity', async (req, res) => {
   try {

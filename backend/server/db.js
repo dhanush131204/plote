@@ -64,6 +64,58 @@ function migrate() {
   } catch {
     /* ignore */
   }
+
+  layoutsCols = tableColumns('layouts')
+  if (!layoutsCols.includes('createdAt')) {
+    db.exec(`ALTER TABLE layouts ADD COLUMN createdAt TEXT`)
+  }
+  try {
+    db.prepare(`UPDATE layouts SET createdAt = (datetime('now')) WHERE createdAt IS NULL OR TRIM(createdAt) = ''`).run()
+  } catch (err) {
+    console.error("Failed to backfill layouts createdAt column:", err)
+  }
+
+  // Migrate plotId to TEXT type if it's currently an INTEGER to support mixed alphanumeric plot IDs cleanly
+  try {
+    const leadsInfo = db.prepare("PRAGMA table_info(leads)").all()
+    const plotIdCol = leadsInfo.find(c => c.name === 'plotId')
+    if (plotIdCol && plotIdCol.type !== 'TEXT') {
+      db.transaction(() => {
+        db.exec(`ALTER TABLE leads RENAME TO leads_old;`)
+        db.exec(`
+          CREATE TABLE leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            layoutId INTEGER NOT NULL,
+            plotId TEXT NOT NULL,
+            customerName TEXT NOT NULL,
+            contactNumber TEXT NOT NULL,
+            metadata TEXT,
+            status TEXT DEFAULT 'new',
+            statusUpdatedAt TEXT,
+            createdAt TEXT DEFAULT (datetime('now')),
+            webhookDeliveredAt TEXT,
+            webhookLastError TEXT,
+            unitId TEXT,
+            trackingId TEXT UNIQUE,
+            customerEmail TEXT,
+            FOREIGN KEY (layoutId) REFERENCES layouts(id)
+          );
+        `)
+        const oldCols = db.prepare("PRAGMA table_info(leads_old)").all().map(c => c.name)
+        const commonCols = oldCols.filter(col => col !== 'plotId')
+        const insertCols = ['plotId', ...commonCols].join(', ')
+        const selectCols = ['CAST(plotId AS TEXT) AS plotId', ...commonCols].join(', ')
+        db.exec(`
+          INSERT INTO leads (${insertCols})
+          SELECT ${selectCols} FROM leads_old;
+        `)
+        db.exec(`DROP TABLE leads_old;`)
+        db.exec(`CREATE INDEX IF NOT EXISTS idx_leads_layoutId ON leads(layoutId);`)
+      })()
+    }
+  } catch (err) {
+    console.error("Failed to migrate plotId column to TEXT type:", err)
+  }
 }
 
 // Initialize schema
@@ -92,7 +144,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS leads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     layoutId INTEGER NOT NULL,
-    plotId INTEGER NOT NULL,
+    plotId TEXT NOT NULL,
     customerName TEXT NOT NULL,
     contactNumber TEXT NOT NULL,
     metadata TEXT,

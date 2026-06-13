@@ -64,7 +64,7 @@ model Layout {
 model Lead {
   id                 Int     @id @default(autoincrement())
   layoutId           Int
-  plotId             Int
+  plotId             String
   trackingId         String? @unique
   customerName       String
   contactNumber      String
