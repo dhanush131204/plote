@@ -30,65 +30,103 @@ export default function Dashboard() {
   if (loading) return <div className="app-loading">Loading...</div>;
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container" style={{ gap: '1.75rem' }}>
       {/* Welcome Banner */}
-      <section className="dashboard-intro">
-        <h1>Welcome back, {user?.name || user?.email?.split('@')[0]}</h1>
-        <p>Here's your real estate portfolio overview at a glance.</p>
+      <section className="welcome-banner" style={{ 
+        marginBottom: '0', 
+        padding: '1.25rem 2rem',
+        background: 'rgba(255, 255, 255, 0.55)', 
+        backdropFilter: 'blur(16px)', 
+        border: '1px solid rgba(255, 255, 255, 0.6)', 
+        boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.03)' 
+      }}>
+        <div className="welcome-content">
+          <p className="section-kicker" style={{ color: '#0a8870', fontWeight: '700', margin: '0 0 0.25rem 0', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Builder Studio</p>
+          <h1 className="welcome-title" style={{ fontFamily: 'var(--font-display)', fontWeight: '700', fontSize: '1.75rem', margin: '0 0 0.25rem 0', color: '#0f172a' }}>Welcome back, {user?.name || user?.email?.split('@')[0]}</h1>
+          <p className="welcome-subtitle" style={{ color: '#475569', fontWeight: '500', margin: 0, fontSize: '0.9rem' }}>Here's your real estate portfolio overview at a glance.</p>
+        </div>
       </section>
 
       {/* KPI Stats (Admin Only) */}
       {isAdmin && (
-        <section className="premium-kpi-grid">
-          <div className="premium-stat-card">
-            <div className="premium-stat-header">
+        <section className="premium-kpi-grid" style={{ marginBottom: '0' }}>
+          <div className="premium-stat-card" style={{ 
+            background: 'rgba(255, 255, 255, 0.65)', 
+            backdropFilter: 'blur(12px)', 
+            border: '1px solid rgba(255, 255, 255, 0.7)',
+            boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.03)',
+            borderRadius: '16px',
+            padding: '1.25rem'
+          }}>
+            <div className="premium-stat-header" style={{ color: '#475569', fontWeight: '600', fontSize: '0.875rem' }}>
               <span>Total Projects</span>
-              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
             </div>
-            <div className="premium-stat-value">{(layouts || []).length}</div>
-            <div><span className="premium-stat-trend positive">↑ Active</span></div>
+            <div className="premium-stat-value" style={{ fontWeight: '700', fontSize: '2rem', color: '#0f172a' }}>{(layouts || []).length}</div>
+            <div><span className="premium-stat-trend positive" style={{ fontWeight: '600', color: '#047857', background: 'rgba(4, 120, 87, 0.08)', fontSize: '0.8rem' }}>↑ Active</span></div>
           </div>
-          <div className="premium-stat-card">
-            <div className="premium-stat-header">
+          <div className="premium-stat-card" style={{ 
+            background: 'rgba(255, 255, 255, 0.65)', 
+            backdropFilter: 'blur(12px)', 
+            border: '1px solid rgba(255, 255, 255, 0.7)',
+            boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.03)',
+            borderRadius: '16px',
+            padding: '1.25rem'
+          }}>
+            <div className="premium-stat-header" style={{ color: '#475569', fontWeight: '600', fontSize: '0.875rem' }}>
               <span>Plot Maps</span>
-              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
             </div>
-            <div className="premium-stat-value">{(layouts || []).filter(l => l?.layoutKind !== 'building').length}</div>
-            <div><span className="premium-stat-trend neutral">Lands</span></div>
+            <div className="premium-stat-value" style={{ fontWeight: '700', fontSize: '2rem', color: '#0f172a' }}>{(layouts || []).filter(l => l?.layoutKind !== 'building').length}</div>
+            <div><span className="premium-stat-trend neutral" style={{ fontWeight: '600', color: '#475569', background: 'rgba(71, 85, 105, 0.08)', fontSize: '0.8rem' }}>Lands</span></div>
           </div>
-          <div className="premium-stat-card">
-            <div className="premium-stat-header">
+          <div className="premium-stat-card" style={{ 
+            background: 'rgba(255, 255, 255, 0.65)', 
+            backdropFilter: 'blur(12px)', 
+            border: '1px solid rgba(255, 255, 255, 0.7)',
+            boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.03)',
+            borderRadius: '16px',
+            padding: '1.25rem'
+          }}>
+            <div className="premium-stat-header" style={{ color: '#475569', fontWeight: '600', fontSize: '0.875rem' }}>
               <span>Buildings</span>
-              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>
             </div>
-            <div className="premium-stat-value">{(layouts || []).filter(l => l?.layoutKind === 'building').length}</div>
-            <div><span className="premium-stat-trend neutral">High-Rises</span></div>
+            <div className="premium-stat-value" style={{ fontWeight: '700', fontSize: '2rem', color: '#0f172a' }}>{(layouts || []).filter(l => l?.layoutKind === 'building').length}</div>
+            <div><span className="premium-stat-trend neutral" style={{ fontWeight: '600', color: '#475569', background: 'rgba(71, 85, 105, 0.08)', fontSize: '0.8rem' }}>High-Rises</span></div>
           </div>
-          <div className="premium-stat-card">
-            <div className="premium-stat-header">
+          <div className="premium-stat-card" style={{ 
+            background: 'rgba(255, 255, 255, 0.65)', 
+            backdropFilter: 'blur(12px)', 
+            border: '1px solid rgba(255, 255, 255, 0.7)',
+            boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.03)',
+            borderRadius: '16px',
+            padding: '1.25rem'
+          }}>
+            <div className="premium-stat-header" style={{ color: '#475569', fontWeight: '600', fontSize: '0.875rem' }}>
               <span>Total Leads</span>
-              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
             </div>
-            <div className="premium-stat-value">{leadsData?.total || 0}</div>
-            <div><span className="premium-stat-trend positive">↑ Trending</span></div>
+            <div className="premium-stat-value" style={{ fontWeight: '700', fontSize: '2rem', color: '#0f172a' }}>{leadsData?.total || 0}</div>
+            <div><span className="premium-stat-trend positive" style={{ fontWeight: '600', color: '#047857', background: 'rgba(4, 120, 87, 0.08)', fontSize: '0.8rem' }}>↑ Trending</span></div>
           </div>
         </section>
       )}
 
       {/* Quick Actions (Admin Only) */}
       {isAdmin && (
-        <section className="quick-actions-bar">
+        <section className="quick-actions-bar" style={{ marginBottom: '0' }}>
           <button className="action-card" onClick={() => navigate('/create')}>
             <div className="action-card-icon">🗺️</div>
-            <div>New Plot Map</div>
+            <div style={{ fontWeight: '600', color: '#334155', fontSize: '0.9rem' }}>New Plot Map</div>
           </button>
           <button className="action-card" onClick={() => navigate('/create/building')}>
             <div className="action-card-icon">🏢</div>
-            <div>New Building</div>
+            <div style={{ fontWeight: '600', color: '#334155', fontSize: '0.9rem' }}>New Building</div>
           </button>
           <button className="action-card" onClick={() => navigate('/admin/leads')}>
             <div className="action-card-icon">👥</div>
-            <div>View Leads</div>
+            <div style={{ fontWeight: '600', color: '#334155', fontSize: '0.9rem' }}>View Leads</div>
           </button>
         </section>
       )}
@@ -119,12 +157,27 @@ export default function Dashboard() {
               const plots = layout.plots || [];
               
               // Calculate statistics dynamically
-              const totalPlots = layout.totalPlots ?? plots.length;
-              const availablePlots = layout.availablePlots ?? plots.filter(p => p.status?.toLowerCase() === "available").length;
-              const soldPlots = layout.soldPlots ?? plots.filter(p => p.status?.toLowerCase() === "sold").length;
+              // For buildings: count configurations across all floors
+              // For plots: count plots as before
+              const totalPlots = isBuilding
+                ? (layout.floors || []).reduce((acc, f) => acc + (f.configurations?.length || 0), 0)
+                : (layout.totalPlots ?? plots.length);
+              const availablePlots = isBuilding
+                ? (layout.floors || []).reduce((acc, f) => acc + (f.configurations?.length || 0), 0)
+                : (layout.availablePlots ?? plots.filter(p => p.status?.toLowerCase() === "available").length);
+              const soldPlots = isBuilding
+                ? 0
+                : (layout.soldPlots ?? plots.filter(p => p.status?.toLowerCase() === "sold").length);
 
               return (
-              <div key={layout.id} className="project-card-premium">
+              <div key={layout.id} className="project-card-premium" style={{
+                background: 'rgba(255, 255, 255, 0.65)', 
+                backdropFilter: 'blur(12px)', 
+                border: '1px solid rgba(255, 255, 255, 0.7)',
+                boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.03)',
+                borderRadius: '16px',
+                overflow: 'hidden'
+              }}>
                 <div className="project-card-img-wrap">
                   {layout.imagePath ? (
                     <img src={`${API_BASE}/uploads/${layout.imagePath}`} alt={layout.name} loading="lazy" />
@@ -177,37 +230,45 @@ export default function Dashboard() {
               <p>No recent leads.</p>
             </div>
           ) : (
-            <div className="admin-table-wrap" style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+            <div className="admin-table-wrap" style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--color-border)', background: '#fff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
               <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{background: 'var(--color-bg-wash)', textAlign: 'left'}}>
-                    <th style={{ padding: '1rem' }}>Tracking ID</th>
-                    <th style={{ padding: '1rem' }}>Name</th>
-                    <th style={{ padding: '1rem' }}>Project</th>
-                    <th style={{ padding: '1rem' }}>Status</th>
-                    <th style={{ padding: '1rem' }}>Date</th>
+                  <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: '700', color: '#475569', fontSize: '0.85rem' }}>Tracking ID</th>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: '700', color: '#475569', fontSize: '0.85rem' }}>Name</th>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: '700', color: '#475569', fontSize: '0.85rem' }}>Project</th>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: '700', color: '#475569', fontSize: '0.85rem' }}>Status</th>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: '700', color: '#475569', fontSize: '0.85rem' }}>Date</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(leadsData?.leads || []).slice(0, 5).map(l => {
                     const lStatus = (l.status || 'new').toLowerCase();
                     return (
-                    <tr key={l.id}>
-                      <td className="admin-cell-mono">{l.trackingId || `PV-${l.id.toString().padStart(4, '0')}`}</td>
-                      <td>
-                        <div style={{fontWeight: 600}}>{l.customerName}</div>
-                        <div style={{fontSize: '0.8rem', color: 'var(--color-text-muted)'}}>{l.contactNumber}</div>
+                    <tr key={l.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      <td className="admin-cell-mono" style={{ padding: '1rem 1.25rem', verticalAlign: 'middle', fontWeight: '600', color: '#1e293b' }}>{l.trackingId || `PV-${l.id.toString().padStart(4, '0')}`}</td>
+                      <td style={{ padding: '1rem 1.25rem', verticalAlign: 'middle' }}>
+                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{l.customerName}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>{l.contactNumber}</div>
                       </td>
-                      <td>
-                        <div>{l.layoutName}</div>
-                        <div style={{fontSize: '0.8rem', color: 'var(--color-text-muted)'}}>Unit/Plot {l.unitId || l.plotId}</div>
+                      <td style={{ padding: '1rem 1.25rem', verticalAlign: 'middle' }}>
+                        <div style={{ fontWeight: 500, color: '#334155' }}>{l.layoutName}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>Unit/Plot {l.unitId || l.plotId}</div>
                       </td>
-                      <td>
-                        <span className={`badge-status ${lStatus}`}>
+                      <td style={{ padding: '1rem 1.25rem', verticalAlign: 'middle' }}>
+                        <span className={`badge-status ${lStatus}`} style={{
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: '20px',
+                          fontSize: '0.8rem',
+                          fontWeight: '600',
+                          background: lStatus === 'new' ? '#eff6ff' : '#f1f5f9',
+                          color: lStatus === 'new' ? '#1d4ed8' : '#475569',
+                          border: lStatus === 'new' ? '1px solid #bfdbfe' : '1px solid #cbd5e1'
+                        }}>
                           {lStatus.charAt(0).toUpperCase() + lStatus.slice(1)}
                         </span>
                       </td>
-                      <td style={{color: 'var(--color-text-muted)'}}>{formatDate(l.createdAt)}</td>
+                      <td style={{ padding: '1rem 1.25rem', verticalAlign: 'middle', color: 'var(--color-text-muted)' }}>{formatDate(l.createdAt)}</td>
                     </tr>
                   )})}
                 </tbody>

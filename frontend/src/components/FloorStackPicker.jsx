@@ -16,7 +16,7 @@ export default function FloorStackPicker({ floors = [], selectedFloorId, onSelec
     <div className="floor-stack-picker" role="region" aria-label="Select floor">
       <p className="floor-stack-picker-label">Floors</p>
       <div className="floor-stack-picker-rail" aria-orientation="vertical">
-        {sorted.map((f) => {
+        {sorted.map((f, i) => {
           const active = f.id === selectedFloorId
           return (
             <button
@@ -27,7 +27,10 @@ export default function FloorStackPicker({ floors = [], selectedFloorId, onSelec
               aria-pressed={active}
             >
               <span className="floor-stack-slab-face" aria-hidden />
-              <span className="floor-stack-slab-label">{f.label || f.id}</span>
+              <span className="floor-slab-index" style={{ display: 'none' }}>{i}</span>
+              <span className="floor-stack-slab-label">
+                {f.label && !/^f\d+$/.test(f.label) ? f.label : `Floor ${(f.sortOrder ?? 0) + 1}`}
+              </span>
             </button>
           )
         })}

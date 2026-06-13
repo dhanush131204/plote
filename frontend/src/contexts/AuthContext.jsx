@@ -53,6 +53,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('impersonateUserId')
     setToken(null)
     setUser(null)
   }

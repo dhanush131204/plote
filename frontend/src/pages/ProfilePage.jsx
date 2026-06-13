@@ -1,10 +1,15 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { useUpdateProfileMutation, useGetAdminActivityQuery, useGetAdminLeadsQuery, useGetLayoutsQuery } from '../api/apiSlice'
+import { useUpdateProfileMutation, useGetAdminActivityQuery, useGetAdminLeadsQuery, useGetLayoutsQuery, useUploadLogoMutation, useDeleteLogoMutation } from '../api/apiSlice'
+
+import toast from 'react-hot-toast'
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
 export default function ProfilePage() {
   const { user, isAdmin, refreshUser } = useAuth()
   const [updateProfile, { isLoading }] = useUpdateProfileMutation()
+  const [uploadLogo] = useUploadLogoMutation()
+  const [deleteLogo] = useDeleteLogoMutation()
 
   // Insights data (only for admin)
   const { data: layouts = [], isLoading: layoutsLoading } = useGetLayoutsQuery(undefined, { skip: !isAdmin })
@@ -74,16 +79,10 @@ export default function ProfilePage() {
     try {
       await updateProfile(formData).unwrap()
       await refreshUser()
-      setMsg('Profile updated successfully.')
+      toast.success('Profile updated successfully.')
       setIsEditing(false)
-      setTimeout(() => {
-        setMsg('')
-      }, 4000)
     } catch (err) {
-      setError(err.data?.error || err.message || 'Failed to update profile')
-      setTimeout(() => {
-        setError('')
-      }, 4000)
+      toast.error(err.data?.error || err.message || 'Failed to update profile')
     }
   }
 
@@ -112,6 +111,34 @@ export default function ProfilePage() {
     setIsEditing(false)
     setMsg('')
     setError('')
+  }
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setMsg('')
+    setError('')
+    const fd = new FormData()
+    fd.append('logo', file)
+    try {
+      await uploadLogo(fd).unwrap()
+      await refreshUser()
+      toast.success('Logo uploaded successfully.')
+    } catch (err) {
+      toast.error(err.data?.error || err.message || 'Failed to upload logo')
+    }
+  }
+
+  const handleLogoDelete = async () => {
+    setMsg('')
+    setError('')
+    try {
+      await deleteLogo().unwrap()
+      await refreshUser()
+      toast.success('Logo removed.')
+    } catch (err) {
+      toast.error(err.data?.error || err.message || 'Failed to remove logo')
+    }
   }
 
   const initials = useMemo(() => {
@@ -176,7 +203,78 @@ export default function ProfilePage() {
       {/* Header */}
       <div className="cp-header">
         <div className="cp-header-left">
-          <div className="cp-avatar">{initials}</div>
+          <div className="cp-avatar" style={{ position: 'relative', overflow: 'visible', width: '64px', height: '64px', borderRadius: '16px', background: 'linear-gradient(135deg, var(--color-accent), #38b2ac)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {user?.logo ? (
+              <img 
+                src={`${API_BASE}/uploads/${user.logo}`} 
+                alt="Logo" 
+                style={{ width: '100%', height: '100%', borderRadius: '16px', objectFit: 'cover', display: 'block' }} 
+              />
+            ) : (
+              initials
+            )}
+            
+            {/* Pencil icon for upload logo */}
+            <label 
+              htmlFor="logo-upload-input" 
+              style={{
+                position: 'absolute',
+                bottom: '-4px',
+                right: '-4px',
+                width: '20px',
+                height: '20px',
+                background: '#0d9488',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                border: '2px solid #fff',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}
+              title="Upload Logo"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+              <input 
+                type="file" 
+                id="logo-upload-input" 
+                accept="image/*" 
+                onChange={handleLogoUpload} 
+                style={{ display: 'none' }} 
+              />
+            </label>
+
+            {/* X icon for removing logo */}
+            {user?.logo && (
+              <button 
+                type="button" 
+                onClick={handleLogoDelete}
+                style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  width: '20px',
+                  height: '20px',
+                  background: '#ef4444',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  border: '2px solid #fff',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  padding: 0,
+                  color: '#fff',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  lineHeight: 1
+                }}
+                title="Remove Logo"
+              >
+                ×
+              </button>
+            )}
+          </div>
           <div>
             <h1 className="cp-title">{formData.companyName || user?.email || 'Company Profile'}</h1>
             <p className="cp-subtitle">{user?.email} · Builder Account</p>
@@ -203,7 +301,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Success / Error */}
-      {msg && <div className="cp-toast cp-toast--success">{msg}</div>}
+
       {error && <div className="cp-toast cp-toast--error">{error}</div>}
 
       {/* Tabs */}

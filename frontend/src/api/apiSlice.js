@@ -10,6 +10,10 @@ const baseQuery = fetchBaseQuery({
     if (token) {
       headers.set('Authorization', `Bearer ${token}`)
     }
+    const impersonateId = localStorage.getItem('impersonateUserId')
+    if (impersonateId) {
+      headers.set('X-Impersonate-User-Id', impersonateId)
+    }
     return headers
   },
 })
@@ -70,6 +74,21 @@ export const apiSlice = createApi({
         url: '/api/auth/me',
         method: 'PUT',
         body: profileData,
+      }),
+      invalidatesTags: ['User'],
+    }),
+    uploadLogo: builder.mutation({
+      query: (formData) => ({
+        url: '/api/auth/me/logo',
+        method: 'PUT',
+        body: formData,
+      }),
+      invalidatesTags: ['User'],
+    }),
+    deleteLogo: builder.mutation({
+      query: () => ({
+        url: '/api/auth/me/logo',
+        method: 'DELETE',
       }),
       invalidatesTags: ['User'],
     }),
@@ -166,8 +185,8 @@ export const apiSlice = createApi({
       ],
     }),
     uploadApartmentMedia: builder.mutation({
-      query: ({ id, floorId, configId, kind, formData }) => ({
-        url: `/api/layouts/${id}/apartment-media?floorId=${encodeURIComponent(floorId)}&configId=${encodeURIComponent(configId)}&kind=${kind}`,
+      query: ({ id, floorId, configId, kind, roomId, formData }) => ({
+        url: `/api/layouts/${id}/apartment-media?floorId=${encodeURIComponent(floorId)}&configId=${encodeURIComponent(configId)}&kind=${kind}${roomId ? `&roomId=${encodeURIComponent(roomId)}` : ''}`,
         method: 'PUT',
         body: formData,
       }),
@@ -245,6 +264,13 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: [{ type: 'Lead', id: 'LIST' }],
     }),
+    deleteLead: builder.mutation({
+      query: (id) => ({
+        url: `/api/admin/leads/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'Lead', id: 'LIST' }],
+    }),
 
     // Public / Visitor Endpoints
     createLead: builder.mutation({
@@ -274,6 +300,8 @@ export const {
   useLoginMutation,
   useSignupMutation,
   useUpdateProfileMutation,
+  useUploadLogoMutation,
+  useDeleteLogoMutation,
   useGetLayoutsQuery,
   useGetLayoutByIdQuery,
   useGetLayoutBySlugQuery,
@@ -295,6 +323,7 @@ export const {
   useDeleteAdminUserMutation,
   usePushLeadWebhookMutation,
   useUpdateLeadStatusMutation,
+  useDeleteLeadMutation,
   useCreateLeadMutation,
   useTrackLeadQuery,
   usePostActivityMutation,

@@ -76,6 +76,7 @@ export default function PublicPlotMapView({ layout }) {
         <PublicSidebar
           layout={layout}
           selectedPlot={selectedPlot}
+          onSelectPlot={setSelectedPlot}
           filters={filters}
           onFilterChange={(key, value) => setFilters((f) => ({ ...f, [key]: value }))}
           onResetFilters={() => setFilters({ ...defaultPlotFilters })}

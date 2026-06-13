@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import ZoomResetEffect from './ZoomResetEffect'
 
@@ -16,6 +16,8 @@ export default function ImagePlotMapView({
   detailsSlot,
   /** 'left' | 'right' — public view uses left sidebar */
   detailsSide = 'right',
+  /** Custom width for the details panel */
+  detailsWidth,
   /** Rendered above the map (outside zoom), e.g. floor stack + 3D preview */
   beforeMapSlot = null,
   zoomPanEnabled = false,
@@ -26,6 +28,46 @@ export default function ImagePlotMapView({
   const hasPlots = plots && plots.length > 0
   const [imageAspectRatio, setImageAspectRatio] = useState(16 / 10)
   const [calibPoints, setCalibPoints] = useState([])
+
+  // Resizable sidebar state
+  const initialWidth = parseInt(detailsWidth) || 400
+  const [sidebarWidth, setSidebarWidth] = useState(initialWidth)
+  const [isDragging, setIsDragging] = useState(false)
+  const containerRef = useRef(null)
+
+  const startResize = useCallback((e) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isDragging) return
+    const handleMouseMove = (e) => {
+      if (!containerRef.current) return
+      const containerRect = containerRef.current.getBoundingClientRect()
+      
+      let newWidth
+      if (detailsSide === 'left') {
+        newWidth = e.clientX - containerRect.left
+      } else {
+        newWidth = containerRect.right - e.clientX
+      }
+      
+      if (newWidth < 300) newWidth = 300
+      const maxWidth = containerRect.width * 0.6 // max 60% of container
+      if (newWidth > maxWidth) newWidth = maxWidth
+      
+      setSidebarWidth(newWidth)
+    }
+    const handleMouseUp = () => setIsDragging(false)
+    
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, detailsSide])
 
   const handleImageLoad = (e) => {
     const img = e.target
@@ -70,7 +112,7 @@ export default function ImagePlotMapView({
   const mapContainer = (
     <div
       className={`image-plot-map-container ${calibrateMode ? 'calibrate-mode' : ''} ${useZoomLayout ? 'image-plot-map-container--zoom' : ''}`}
-      style={useZoomLayout ? { maxWidth: '100%', maxHeight: '100%', position: 'relative', display: 'flex' } : { aspectRatio: imageAspectRatio, position: 'relative', width: '100%' }}
+      style={{ aspectRatio: imageAspectRatio, position: 'relative', width: '100%' }}
       onClick={handleContainerClick}
       role={calibrateMode ? 'button' : undefined}
       tabIndex={calibrateMode ? 0 : undefined}
@@ -89,7 +131,6 @@ export default function ImagePlotMapView({
           src={imageSrc} 
           alt="Plot layout" 
           className="image-plot-map-img" 
-          style={useZoomLayout ? { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', position: 'relative', width: 'auto', height: 'auto' } : undefined}
           onLoad={handleImageLoad} 
         />
       )}
@@ -172,16 +213,18 @@ export default function ImagePlotMapView({
         <div className="image-plot-overlay-labels">
           {Object.entries(overlayConfig || {}).map(([plotNumStr, config]) => {
             const pts = config?.points
-            if (!pts?.length) return null
             const cx = pts.reduce((s, [x]) => s + x, 0) / pts.length
             const cy = pts.reduce((s, [, y]) => s + y, 0) / pts.length
+            const plot = plots.find((p) => String(p.number) === String(plotNumStr) || String(p.id) === String(plotNumStr))
+            const prefix = plot?.prefix !== undefined ? plot?.prefix : 'Unit'
+            const displayName = prefix === 'Unit' ? plotNumStr : `${prefix} ${plotNumStr}`
             return (
               <div
                 key={`calib-label-${plotNumStr}`}
                 className="overlay-label overlay-label-calibrated"
                 style={{ left: `${cx}%`, top: `${cy}%`, transform: 'translate(-50%, -50%)' }}
               >
-                {plotNumStr}
+                {displayName}
               </div>
             )
           })}
@@ -200,13 +243,15 @@ export default function ImagePlotMapView({
               cx = overlay.left + overlay.width / 2
               cy = overlay.top + overlay.height / 2
             }
+            const prefix = plot?.prefix !== undefined ? plot?.prefix : 'Unit'
+            const displayName = prefix === 'Unit' ? plot.number : `${prefix} ${plot.number}`
             return (
               <div
                 key={plot.id}
                 className="overlay-label"
                 style={{ left: `${cx}%`, top: `${cy}%`, transform: 'translate(-50%, -50%)' }}
               >
-                {plot.number}
+                {displayName}
               </div>
             )
           })}
@@ -223,9 +268,10 @@ export default function ImagePlotMapView({
           initialScale={1}
           minScale={0.5}
           maxScale={3}
-          limitToBounds
+          limitToBounds={false}
           centerOnInit
           wheel={{ step: 0.12 }}
+          panning={{ disabled: false, wheelPanning: true }}
           doubleClick={{ disabled: false, mode: 'reset' }}
         >
           <ZoomResetEffect
@@ -243,20 +289,35 @@ export default function ImagePlotMapView({
     )
 
   const detailsEl = detailsSlot ? (
-    <div className={`plot-details-side ${detailsSide === 'left' ? 'plot-details-side--left' : ''}`}>
+    <div 
+      className={`plot-details-side ${detailsSide === 'left' ? 'plot-details-side--left' : ''}`}
+      style={{ width: sidebarWidth, minWidth: sidebarWidth }}
+    >
       {typeof detailsSlot === 'function' ? detailsSlot({ calibPoints }) : detailsSlot}
     </div>
   ) : null
 
   return (
     <div
+      ref={containerRef}
       className={`image-plot-map-layout ${calibrateMode ? 'calibrate-mode' : ''} ${detailsSide === 'left' ? 'details-side-left' : ''}`}
+      style={{ height: '100%', ...(isDragging ? { cursor: 'col-resize', userSelect: 'none' } : {}) }}
     >
       {detailsSide === 'left' && detailsEl}
-      <div className={`image-plot-map-side ${calibrateMode ? 'calibrate-mode' : ''}`}>
+      
+      {detailsSide === 'left' && detailsSlot && (
+        <div className="image-plot-map-resizer" onMouseDown={startResize} />
+      )}
+      
+      <div className={`image-plot-map-side ${calibrateMode ? 'calibrate-mode' : ''}`} style={isDragging ? { pointerEvents: 'none' } : {}}>
         {beforeMapSlot}
         {mapBlock}
       </div>
+
+      {detailsSide !== 'left' && detailsSlot && (
+        <div className="image-plot-map-resizer" onMouseDown={startResize} />
+      )}
+
       {detailsSide !== 'left' && detailsEl}
     </div>
   )

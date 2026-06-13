@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useGetAdminLeadsQuery, usePushLeadWebhookMutation, useUpdateLeadStatusMutation } from '../api/apiSlice';
+import { useGetAdminLeadsQuery, usePushLeadWebhookMutation, useUpdateLeadStatusMutation, useDeleteLeadMutation } from '../api/apiSlice';
 import { normalizeDateValue } from '../utils/dateUtils';
 
 export default function Leads() {
   const { data: leadsData, isLoading: loadingLeads, error: errorLeads } = useGetAdminLeadsQuery(100);
   const [pushWebhookTrigger] = usePushLeadWebhookMutation();
+  const [deleteLead] = useDeleteLeadMutation();
 
   const [error, setError] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
   const [updatingId, setUpdatingId] = useState(null);
   const [updateLeadStatus] = useUpdateLeadStatusMutation();
+
+  const [confirmDialog, setConfirmDialog] = useState(null);
 
   useEffect(() => {
     if (errorLeads) {
@@ -39,6 +42,24 @@ export default function Leads() {
     } catch (err) {
       setError(err.data?.error || err.message || 'Failed to push webhook');
     }
+  };
+
+  const handleDeleteLead = (leadId, customerName) => {
+    setConfirmDialog({
+      title: 'Delete Lead',
+      message: `Are you sure you want to delete the lead for "${customerName}"? This action cannot be undone.`,
+      actionLabel: 'Delete',
+      isDanger: true,
+      onConfirm: async () => {
+        setError('');
+        try {
+          await deleteLead(leadId).unwrap();
+        } catch (err) {
+          setError(err.data?.error || err.message || 'Failed to delete lead');
+        }
+        setConfirmDialog(null);
+      }
+    });
   };
 
   if (loadingLeads) return <div className="app-loading">Loading CRM...</div>;
@@ -83,48 +104,88 @@ export default function Leads() {
               <p>When buyers show interest in your projects, their details will appear here in your CRM.</p>
             </div>
         ) : (
-          <div className="admin-table-wrap" style={{background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden', border: '1px solid var(--color-border)'}}>
+          <div className="admin-table-wrap" style={{
+            background: 'var(--color-surface)', 
+            borderRadius: '16px', 
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)', 
+            overflow: 'hidden', 
+            border: '1px solid var(--color-border)'
+          }}>
             <table className="admin-table" style={{width: '100%', borderCollapse: 'collapse'}}>
               <thead>
-                <tr style={{background: 'var(--color-bg-wash)'}}>
-                  <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Date</th>
-                  <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Project</th>
-                  <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Unit / Plot</th>
-                  <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Contact Name</th>
-                  <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Phone / Email</th>
-                  <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Status</th>
-                  <th style={{padding: '1rem', textAlign: 'right', fontWeight: '600', color: 'var(--color-text-muted)'}}>Actions</th>
+                <tr style={{background: '#f8fafc', borderBottom: '2px solid #e2e8f0'}}>
+                  <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Date</th>
+                  <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Project</th>
+                  <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Unit / Plot</th>
+                  <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Contact Name</th>
+                  <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Phone / Email</th>
+                  <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Status</th>
+                  <th style={{padding: '1.25rem 1.5rem', textAlign: 'center', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {leads.map((l) => {
                   const lStatus = (l.status || 'new').toLowerCase();
+                  
+                  // Color codes for select element
+                  let statusStyles = { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' }; // new/default
+                  if (lStatus === 'approved') statusStyles = { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0' };
+                  else if (lStatus === 'sold') statusStyles = { bg: '#f0fdf4', text: '#16a34a', border: '#bbf7d0' };
+                  else if (lStatus === 'pending') statusStyles = { bg: '#fffbeb', text: '#d97706', border: '#fde68a' };
+                  else if (lStatus === 'rejected') statusStyles = { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' };
+
                   return (
-                  <tr key={l.id} style={{borderTop: '1px solid var(--color-border)', background: 'var(--color-surface)', transition: 'background 0.2s'}}>
-                    <td style={{padding: '1rem', color: 'var(--color-text-muted)'}}>{formatDate(l.createdAt)}</td>
-                    <td style={{padding: '1rem', fontWeight: '600'}}>{l.layoutName}</td>
-                    <td style={{padding: '1rem'}}>{l.unitId || l.plotId} {l.unitTower ? `(${l.unitTower})` : ''}</td>
-                    <td style={{padding: '1rem'}}>
-                      <div style={{fontWeight: 600}}>{l.customerName}</div>
+                  <tr key={l.id} style={{
+                    borderTop: '1px solid var(--color-border)', 
+                    background: 'var(--color-surface)', 
+                    transition: 'background-color 0.25s'
+                  }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                    <td style={{padding: '1.25rem 1.5rem', color: '#64748b', fontSize: '0.9rem'}}>{formatDate(l.createdAt)}</td>
+                    <td style={{padding: '1.25rem 1.5rem', fontWeight: '700', color: '#1e293b', fontSize: '0.9rem'}}>{l.layoutName}</td>
+                    <td style={{padding: '1.25rem 1.5rem', color: '#334155', fontWeight: '500', fontSize: '0.9rem'}}>{l.unitId || l.plotId} {l.unitTower ? `(${l.unitTower})` : ''}</td>
+                    <td style={{padding: '1.25rem 1.5rem'}}>
+                      <div style={{fontWeight: '700', color: '#1e293b', fontSize: '0.95rem'}}>{l.customerName}</div>
                     </td>
-                    <td style={{padding: '1rem'}}>
-                      <div>{l.contactNumber}</div>
-                      <div style={{color: 'var(--color-text-muted)', fontSize: '0.85rem'}}>{l.customerEmail}</div>
+                    <td style={{padding: '1.25rem 1.5rem'}}>
+                      <div style={{fontWeight: '600', color: '#334155', fontSize: '0.9rem'}}>{l.contactNumber}</div>
+                      <div style={{color: '#64748b', fontSize: '0.8rem', marginTop: '0.15rem'}}>{l.customerEmail}</div>
                     </td>
-                    <td style={{padding: '1rem'}}>
+                    <td style={{padding: '1.25rem 1.5rem'}}>
                       <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
-                        <select value={lStatus} onChange={async (e) => {
-                          setError(''); setStatusMsg(''); setUpdatingId(l.id);
-                          try {
-                            await updateLeadStatus({ id: l.id, status: e.target.value }).unwrap();
-                            setStatusMsg('Status updated');
-                          } catch (err) {
-                            setError(err.data?.error || err.message || 'Failed to update status');
-                          } finally {
-                            setUpdatingId(null);
-                            setTimeout(() => setStatusMsg(''), 3000);
-                          }
-                        }} disabled={updatingId===l.id} style={{padding: '0.4rem 0.5rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', outline: 'none'}}>
+                        <select 
+                          value={lStatus} 
+                          onChange={async (e) => {
+                            setError(''); setStatusMsg(''); setUpdatingId(l.id);
+                            try {
+                              await updateLeadStatus({ id: l.id, status: e.target.value }).unwrap();
+                              setStatusMsg('Status updated');
+                            } catch (err) {
+                              setError(err.data?.error || err.message || 'Failed to update status');
+                            } finally {
+                              setUpdatingId(null);
+                              setTimeout(() => setStatusMsg(''), 3000);
+                            }
+                          }} 
+                          disabled={updatingId===l.id} 
+                          style={{
+                            padding: '0.4rem 1.75rem 0.4rem 0.75rem', 
+                            borderRadius: '8px', 
+                            border: `1px solid ${statusStyles.border}`, 
+                            background: `${statusStyles.bg}`,
+                            color: `${statusStyles.text}`,
+                            fontWeight: '700',
+                            fontSize: '0.85rem',
+                            outline: 'none',
+                            cursor: 'pointer',
+                            appearance: 'none',
+                            backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23475569\' stroke-width=\'2.5\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'/%3E%3C/svg%3E")',
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 0.5rem center',
+                            backgroundSize: '0.85rem',
+                            transition: 'all 0.2s ease',
+                            width: 'fit-content'
+                          }}
+                        >
                           <option value="new">New</option>
                           <option value="pending">Pending</option>
                           <option value="approved">Approved</option>
@@ -133,10 +194,51 @@ export default function Leads() {
                         </select>
                       </div>
                     </td>
-                    <td style={{padding: '1rem', textAlign: 'right'}}>
-                      <button type="button" className="btn-secondary" style={{padding: '0.4rem 0.75rem', fontSize: '0.8125rem'}} onClick={() => pushLeadWebhook(l.id)}>
-                        Push Webhook
-                      </button>
+                    <td style={{padding: '1.25rem 1.5rem', textAlign: 'center'}}>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                        <button 
+                          type="button" 
+                          className="btn-secondary" 
+                          style={{
+                            padding: '0.45rem 1rem', 
+                            fontSize: '0.8rem', 
+                            borderRadius: '8px', 
+                            fontWeight: '600',
+                            border: '1px solid #cbd5e1',
+                            background: '#fff',
+                            color: '#475569',
+                            cursor: 'pointer',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                          }} 
+                          onClick={() => pushLeadWebhook(l.id)}
+                        >
+                          Push Webhook
+                        </button>
+                        <button 
+                          type="button" 
+                          style={{
+                            padding: '0.45rem 1rem', 
+                            fontSize: '0.8rem', 
+                            borderRadius: '8px', 
+                            fontWeight: '600',
+                            border: '1px solid #fee2e2',
+                            background: '#fef2f2',
+                            color: '#dc2626',
+                            cursor: 'pointer',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            transition: 'all 0.2s'
+                          }} 
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#fee2e2';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = '#fef2f2';
+                          }}
+                          onClick={() => handleDeleteLead(l.id, l.customerName)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )})}
@@ -145,6 +247,41 @@ export default function Leads() {
           </div>
         )}
       </section>
+
+      {confirmDialog && (
+        <div className="plot-interest-modal-root" role="dialog" aria-modal="true" style={{ zIndex: 1100 }}>
+          <div className="plot-interest-modal-backdrop" onClick={() => setConfirmDialog(null)} style={{ backdropFilter: 'blur(4px)' }} />
+          <div className="plot-interest-modal" style={{ maxWidth: '420px', width: '90%', borderRadius: '16px', overflow: 'hidden', padding: '2rem' }}>
+            <div className="plot-interest-modal-header" style={{ borderBottom: 'none', paddingBottom: '0.5rem' }}>
+              <h2 className="plot-interest-modal-title" style={{ fontFamily: 'var(--font-display)', fontSize: '1.35rem', fontWeight: 800 }}>{confirmDialog.title}</h2>
+              <button className="plot-interest-modal-close" onClick={() => setConfirmDialog(null)}>×</button>
+            </div>
+            <p style={{ fontSize: '0.95rem', color: '#475569', lineHeight: '1.5', margin: '0.5rem 0 1.5rem 0' }}>
+              {confirmDialog.message}
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => setConfirmDialog(null)} style={{ padding: '0.6rem 1.25rem', borderRadius: '8px' }}>
+                Cancel
+              </button>
+              <button 
+                className={confirmDialog.isDanger ? 'btn-danger' : 'btn-primary'} 
+                onClick={confirmDialog.onConfirm} 
+                style={{ 
+                  padding: '0.6rem 1.25rem', 
+                  borderRadius: '8px',
+                  background: confirmDialog.isDanger ? '#ef4444' : '#0a8870',
+                  color: '#fff',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+              >
+                {confirmDialog.actionLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -315,58 +315,133 @@ export default function LayoutBuilder() {
       )}
 
       {step === 2 && (
-        <div className="builder-floating-panel">
-          <h3>Settings</h3>
-          <p>Configure public layout details.</p>
-          <label className="builder-field">
-            Layout name <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <label className="builder-field">
-            URL slug <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. bhuvaneshwari-nagar" />
-          </label>
-          <label className="builder-field">
-            Subtitle / label (optional)
-            <input
-              type="text"
-              value={phaseInfo.layoutName}
-              onChange={(e) => setPhaseInfo((p) => ({ ...p, layoutName: e.target.value }))}
-              placeholder="e.g. phase name for lead forms"
-            />
-          </label>
-          <label className="builder-field">
-            Description (public sidebar)
-            <textarea
-              className="builder-textarea"
-              rows={3}
-              value={phaseInfo.description ?? ''}
-              onChange={(e) => setPhaseInfo((p) => ({ ...p, description: e.target.value }))}
-              placeholder={'Phase-I: 200/2024\nPHASE-II: 201/2024'}
-            />
-          </label>
-          <label className="builder-field">
-            Contact phone (public map)
-            <input
-              type="tel"
-              value={phaseInfo.phone ?? phaseInfo.contactPhone ?? ''}
-              onChange={(e) => setPhaseInfo((p) => ({ ...p, phone: e.target.value, contactPhone: e.target.value }))}
-              placeholder="+91 …"
-            />
-          </label>
-          <label className="builder-field">
-            WhatsApp number
-            <input
-              type="tel"
-              value={phaseInfo.whatsapp ?? ''}
-              onChange={(e) => setPhaseInfo((p) => ({ ...p, whatsapp: e.target.value }))}
-              placeholder="Digits only; defaults to contact phone"
-            />
-          </label>
-          <label className="builder-field">
-            Webhook URL (CRM) <input type="url" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://..." />
-          </label>
-          <button type="button" onClick={handleSave} disabled={saving} className="btn-primary" style={{ marginTop: '0.5rem', width: '100%' }}>
-            {saving ? 'Saving...' : 'Save layout & publish'}
-          </button>
+        <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', zIndex: 10, background: '#f8fafc', padding: '5.5rem 1.5rem 3rem 1.5rem', color: '#0f172a' }}>
+          <div style={{ maxWidth: '800px', width: '100%', margin: '0 auto' }}>
+            
+            {/* Back Button */}
+            <button 
+              type="button" 
+              onClick={() => setStep(1)} 
+              style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.5rem', 
+                background: 'none', 
+                border: 'none', 
+                color: '#475569', 
+                fontWeight: 700, 
+                fontSize: '0.9rem', 
+                cursor: 'pointer', 
+                marginBottom: '1rem', 
+                padding: '0.5rem 0',
+                transition: 'color 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = '#0f172a'}
+              onMouseLeave={(e) => e.currentTarget.style.color = '#475569'}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+              Back to Calibration
+            </button>
+
+            <div style={{ marginBottom: '2rem' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                Layout Settings
+              </h3>
+              <p style={{ color: '#64748b', fontSize: '0.925rem' }}>Configure public layout presentation and lead notifications.</p>
+            </div>
+
+            {/* Section 1: Branding & Identity */}
+            <div style={{ background: '#ffffff', borderRadius: '0.875rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '2rem', marginBottom: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 1.25rem 0', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
+                Branding & Information
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Layout Name</span>
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: '#0f172a' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>URL Slug</span>
+                  <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. green-plot-plan" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: '#0f172a' }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '1.25rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Subtitle / Phase Name (optional)</span>
+                <input type="text" value={phaseInfo.layoutName} onChange={(e) => setPhaseInfo((p) => ({ ...p, layoutName: e.target.value }))} placeholder="e.g. Phase I, Premium block" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: '#0f172a' }} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Description (shown on public sidebar)</span>
+                <textarea rows={3} value={phaseInfo.description ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, description: e.target.value }))} placeholder="Phase-I: RERA Approved&#10;PHASE-II: Launching Soon" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit', resize: 'vertical', background: '#ffffff', color: '#0f172a' }} />
+              </div>
+            </div>
+
+            {/* Section 2: Contact Options */}
+            <div style={{ background: '#ffffff', borderRadius: '0.875rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '2rem', marginBottom: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 1.25rem 0', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                Contact & Support
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Contact Phone</span>
+                  <input type="tel" value={phaseInfo.phone ?? phaseInfo.contactPhone ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, phone: e.target.value, contactPhone: e.target.value }))} placeholder="+91 98765 43210" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: '#0f172a' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>WhatsApp Number</span>
+                  <input type="tel" value={phaseInfo.whatsapp ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, whatsapp: e.target.value }))} placeholder="Include country code (e.g. 919876543210)" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: '#0f172a' }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: CRM Integration */}
+            <div style={{ background: '#ffffff', borderRadius: '0.875rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '2rem', marginBottom: '2.5rem' }}>
+              <h4 style={{ margin: '0 0 1.25rem 0', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                Webhook & CRM integration
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Webhook URL (fires on user interest submit)</span>
+                <input type="url" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://api.yourcrm.com/leads/webhook" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: '#0f172a' }} />
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                fontSize: '1rem',
+                fontWeight: 700,
+                color: '#ffffff',
+                background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+                border: 'none',
+                borderRadius: '0.625rem',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(13, 148, 136, 0.35)',
+                transition: 'all 0.25s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)'
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(13, 148, 136, 0.45)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(13, 148, 136, 0.35)'
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+              {saving ? 'Publishing Changes...' : 'Save Layout & Publish'}
+            </button>
+          </div>
         </div>
       )}
 

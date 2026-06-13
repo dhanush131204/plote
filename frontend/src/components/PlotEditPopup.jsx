@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react'
 
 export default function PlotEditPopup({ plot, onSave, onClose, buildingMode = false, floors = [], towers = [] }) {
+  const deriveConfigId = (beds) => {
+    if (beds === 1) return '1bhk'
+    if (beds === 2) return '2bhk'
+    if (beds === 3) return '3bhk'
+    if (beds === 4) return '4bhk'
+    if (beds === 0) return 'studio'
+    return 'custom'
+  }
+
   const [form, setForm] = useState({
     number: 101,
     floor: '',
     tower: 'A',
     beds: 2,
+    configId: '2bhk',
     areaCent: 0,
     areaSqft: 0,
     facing: 'East',
@@ -21,6 +31,7 @@ export default function PlotEditPopup({ plot, onSave, onClose, buildingMode = fa
         floor: plot.floor ?? '',
         tower: plot.tower ?? towers[0]?.id ?? 'A',
         beds: plot.beds ?? 2,
+        configId: plot.configId ?? deriveConfigId(plot.beds ?? 2),
         areaCent: plot.areaCent ?? 0,
         areaSqft: plot.areaSqft ?? 0,
         facing: plot.facing ?? 'East',
@@ -85,7 +96,7 @@ export default function PlotEditPopup({ plot, onSave, onClose, buildingMode = fa
                 >
                   {floors.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.label || f.id}
+                      {f.label && !/^f\d+$/.test(f.label) ? f.label : `Floor ${(f.sortOrder ?? 0) + 1}`}
                     </option>
                   ))}
                 </select>
@@ -104,12 +115,41 @@ export default function PlotEditPopup({ plot, onSave, onClose, buildingMode = fa
                 </select>
               </label>
               <label className="plot-edit-field">
+                <span>Unit Type</span>
+                <select
+                  value={form.configId}
+                  onChange={(e) => {
+                    const cid = e.target.value
+                    let b = form.beds
+                    if (cid === '1bhk') b = 1
+                    else if (cid === '2bhk') b = 2
+                    else if (cid === '3bhk') b = 3
+                    else if (cid === '4bhk') b = 4
+                    else if (cid === 'studio') b = 0
+                    
+                    setForm(prev => ({
+                      ...prev,
+                      configId: cid,
+                      beds: b
+                    }))
+                  }}
+                >
+                  <option value="1bhk">1 BHK</option>
+                  <option value="2bhk">2 BHK</option>
+                  <option value="3bhk">3 BHK</option>
+                  <option value="4bhk">4 BHK</option>
+                  <option value="studio">Studio</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </label>
+              <label className="plot-edit-field">
                 <span>Bedrooms</span>
                 <input
                   type="number"
                   min={0}
                   max={20}
                   step={1}
+                  disabled={form.configId !== 'custom'}
                   value={form.beds}
                   onChange={(e) => handleChange('beds', parseInt(e.target.value, 10) || 0)}
                 />

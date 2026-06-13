@@ -47,13 +47,8 @@ export default function PublicBuildingSidebar({
   onToggleLegend,
   bookingStep = 'units',
   onSkipToFloorPlan,
+  onClearSelection
 }) {
-  const [filtersOpen, setFiltersOpen] = useState(true)
-  const [unitDetailsOpen, setUnitDetailsOpen] = useState(true)
-
-  const toggleFiltersOpen = () => setFiltersOpen((v) => !v)
-  const toggleUnitDetailsOpen = () => setUnitDetailsOpen((v) => !v)
-
   const filtersActive =
     filters.availability !== 'All' ||
     filters.facing !== 'All' ||
@@ -68,149 +63,114 @@ export default function PublicBuildingSidebar({
       overflowY: 'auto', 
       overflowX: 'hidden',
       width: '100%', 
-      maxWidth: '420px' 
+      background: '#ffffff',
+      paddingBottom: '2rem'
     }}>
-      <div className="public-sidebar-layout">
-        <div className="public-sidebar-live" aria-live="polite">
-          <span className="public-sidebar-live-dot" aria-hidden />
-          <span>Live view</span>
+      <div style={{ padding: '2rem 1.5rem 1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#0a8870', animation: 'pulse 2s infinite' }} />
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#0a8870' }}>Live Inventory</span>
         </div>
-        <h2 className="public-sidebar-title">{layout?.name || 'Building'}</h2>
-        <PublicSidebarPhaseLines layout={layout} />
-      </div>
-
-      <div className="public-sidebar-toolbar" role="toolbar" aria-label="Map controls">
-        <button type="button" className="public-sidebar-tool" onClick={onZoomIn} aria-label="Zoom in" title="Zoom in">
-          +
-        </button>
-        <button type="button" className="public-sidebar-tool" onClick={onZoomOut} aria-label="Zoom out" title="Zoom out">
-          −
-        </button>
-        <button type="button" className="public-sidebar-tool" onClick={onResetView} aria-label="Reset view" title="Reset view">
-          ↺
-        </button>
-        <button
-          type="button"
-          className={`public-sidebar-tool ${legendOpen ? 'active' : ''}`}
-          onClick={onToggleLegend}
-          aria-label={legendOpen ? 'Hide status legend' : 'Show status legend'}
-          aria-pressed={legendOpen}
-          title="Legend"
-        >
-          i
-        </button>
-      </div>
-
-      {bookingStep !== 'units' && (
-        <div className="public-sidebar-booking-hint">
-          {bookingStep === 'facade' && (
-            <p>Select a floor on the building facade, use the floor list, or skip to the unit map.</p>
-          )}
-          {bookingStep === 'config' && <p>Pick 2 BHK or 3 BHK to see matching units on the floor plan.</p>}
-          {bookingStep === 'facade' && onSkipToFloorPlan && (
-            <button type="button" className="btn-secondary public-sidebar-skip" onClick={onSkipToFloorPlan}>
-              Skip to unit map
-            </button>
-          )}
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 800, margin: '0 0 0.25rem', color: '#1e293b', lineHeight: 1.1 }}>{layout?.name || 'Building'}</h2>
+        <div style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '1.5rem' }}>
+          <PublicSidebarPhaseLines layout={layout} />
         </div>
-      )}
 
-      {bookingStep === 'units' && (
-        <div className="public-sidebar-filters-block">
-          <div className="public-sidebar-filters-head">
-            <button
-              type="button"
-              className="public-sidebar-filters-toggle"
-              onClick={toggleFiltersOpen}
-              aria-expanded={filtersOpen}
-              id="public-filters-heading-building"
-            >
-              <span className="public-sidebar-filters-icon" aria-hidden>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                </svg>
-              </span>
-              <span>Filters</span>
-              {filtersActive && <span className="public-sidebar-filters-badge" aria-hidden />}
-            </button>
-            <div className="public-sidebar-filters-head-actions">
-              <button
-                type="button"
-                className="public-sidebar-filters-reset-head"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onResetFilters()
-                }}
-              >
-                Reset
-              </button>
-              <button
-                type="button"
-                className="public-sidebar-filters-chevron-btn"
-                onClick={toggleFiltersOpen}
-                aria-expanded={filtersOpen}
-                aria-controls="public-filters-region-building"
-                aria-label={filtersOpen ? 'Collapse filters' : 'Expand filters'}
-              >
-                <span aria-hidden>{filtersOpen ? '▾' : '▸'}</span>
-              </button>
-            </div>
-          </div>
-          {filtersOpen && (
-            <div
-              className="public-sidebar-filters-body"
-              id="public-filters-region-building"
-              role="region"
-              aria-labelledby="public-filters-heading-building"
-            style={{ height: 'auto', maxHeight: 'none', overflow: 'visible' }}
-            >
-              <Filters
-                filters={filters}
-                onFilterChange={onFilterChange}
-                onReset={onResetFilters}
-                hideResetButton
-                hideTitle
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="public-sidebar-plot" style={{ height: 'auto', maxHeight: 'none', overflow: 'visible', flexShrink: 0, borderTop: '1px solid var(--color-border)' }}>
-        <div className="public-sidebar-filters-head">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginBottom: '1rem' }}>
+          <button type="button" className="public-sidebar-tool" onClick={onZoomIn} aria-label="Zoom in" title="Zoom in" style={{ width: '100%', height: '2.5rem' }}>
+            +
+          </button>
+          <button type="button" className="public-sidebar-tool" onClick={onZoomOut} aria-label="Zoom out" title="Zoom out" style={{ width: '100%', height: '2.5rem' }}>
+            −
+          </button>
+          <button type="button" className="public-sidebar-tool" onClick={onResetView} aria-label="Reset view" title="Reset view" style={{ width: '100%', height: '2.5rem' }}>
+            ↺
+          </button>
           <button
             type="button"
-            className="public-sidebar-filters-toggle"
-            onClick={toggleUnitDetailsOpen}
-            aria-expanded={unitDetailsOpen}
+            className={`public-sidebar-tool ${legendOpen ? 'active' : ''}`}
+            onClick={onToggleLegend}
+            aria-label={legendOpen ? 'Hide status legend' : 'Show status legend'}
+            aria-pressed={legendOpen}
+            title="Legend"
+            style={{ width: '100%', height: '2.5rem', background: legendOpen ? '#0a8870' : '#fff', color: legendOpen ? '#fff' : '#1f2a3d', borderColor: legendOpen ? '#0a8870' : undefined }}
           >
-            <span className="public-sidebar-filters-icon" aria-hidden>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-                <polyline points="13 2 13 9 20 9" />
-              </svg>
-            </span>
-            <span>Unit details</span>
+            i
           </button>
-          <div className="public-sidebar-filters-head-actions">
-            <button
-              type="button"
-              className="public-sidebar-filters-chevron-btn"
-              onClick={toggleUnitDetailsOpen}
-              aria-label={unitDetailsOpen ? 'Collapse unit details' : 'Expand unit details'}
-            >
-              <span aria-hidden>{unitDetailsOpen ? '▾' : '▸'}</span>
-            </button>
-          </div>
         </div>
-        {unitDetailsOpen && (
-          <PlotDetailsPanelWithLead
-            variant="sidebar"
-            layout={layout}
-            isBuilding
-            layoutLabel={layout?.phaseInfo?.layoutName || undefined}
-            plot={selectedUnit ? { ...selectedUnit, layoutId: layout.id } : null}
-          />
+
+        {bookingStep !== 'units' && (
+          <div className="public-sidebar-booking-hint" style={{ marginTop: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}>
+            {bookingStep === 'facade' && (
+              <p style={{ margin: 0 }}>Select a floor on the building facade, use the floor list, or skip to the unit map.</p>
+            )}
+            {bookingStep === 'config' && <p style={{ margin: 0 }}>Pick 2 BHK or 3 BHK to see matching units on the floor plan.</p>}
+            {bookingStep === 'facade' && onSkipToFloorPlan && (
+              <button 
+                type="button" 
+                className="btn-secondary public-sidebar-skip" 
+                onClick={onSkipToFloorPlan} 
+                style={{ marginTop: '0.75rem', width: '100%', padding: '0.5rem', fontSize: '0.85rem' }}
+              >
+                Skip to unit map
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {selectedUnit ? (
+          <div style={{ padding: '0 1.5rem', animation: 'fadeIn 0.3s ease' }}>
+            <button 
+              onClick={onClearSelection}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', color: '#64748b', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', padding: '0 0 1rem 0' }}
+            >
+              ← Back to Filters
+            </button>
+            <PlotDetailsPanelWithLead
+              variant="sidebar"
+              layout={layout}
+              isBuilding
+              layoutLabel={layout?.phaseInfo?.layoutName || undefined}
+              plot={{ ...selectedUnit, layoutId: layout.id }}
+            />
+          </div>
+        ) : (
+          <div style={{ padding: '0 1.5rem' }}>
+            {bookingStep === 'units' && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>
+                    Filters
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onResetFilters}
+                    style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Reset All
+                  </button>
+                </div>
+                <Filters
+                  filters={filters}
+                  onFilterChange={onFilterChange}
+                  onReset={onResetFilters}
+                  hideResetButton
+                  hideTitle
+                />
+              </>
+            )}
+            
+            <div style={{ marginTop: '1.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
+              <PlotDetailsPanelWithLead
+                variant="sidebar"
+                layout={layout}
+                isBuilding
+                plot={null}
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>

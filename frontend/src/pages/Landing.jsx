@@ -29,7 +29,7 @@ export default function Landing() {
       else if (loggedInUser.role === 'admin') navigate('/dashboard')
       else navigate('/buyer/projects')
     } catch (err) {
-      setError(err.message || 'Something went wrong')
+      setError(err.data?.error || err.error || err.message || 'Something went wrong')
     } finally {
       setLoading(false)
     }

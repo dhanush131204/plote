@@ -3,15 +3,26 @@ import { createPortal } from 'react-dom'
 import { useCreateLeadMutation } from '../api/apiSlice'
 import PlotQuickActions from './PlotQuickActions'
 
-export default function PlotDetailsPanelWithLead({ plot, variant = 'default', layoutLabel, layout, isBuilding = false }) {
+export default function PlotDetailsPanelWithLead({ plot, variant = 'default', layoutLabel, layout, isBuilding = false, onSelectPlot }) {
   const [interestModalOpen, setInterestModalOpen] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [contactNumber, setContactNumber] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [showToast, setShowToast] = useState(false)
   const [createLead, { isLoading: loading }] = useCreateLeadMutation()
   const [error, setError] = useState('')
   const [isSaved, setIsSaved] = useState(false)
+
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => {
+        setShowToast(false)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+    return undefined
+  }, [showToast])
 
   useEffect(() => {
     if (!plot?.id) return
@@ -94,6 +105,7 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
 
       setSubmitted(true)
       setInterestModalOpen(false)
+      setShowToast(true)
     } catch (err) {
       setError(err.data?.error || err.message || 'Failed to submit')
     }
@@ -190,6 +202,59 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
       document.body
     )
 
+  const toastNotification =
+    showToast &&
+    createPortal(
+      <div
+        style={{
+          position: 'fixed',
+          top: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 10001,
+          background: 'rgba(10, 136, 112, 0.95)',
+          backdropFilter: 'blur(8px)',
+          color: '#ffffff',
+          padding: '1rem 2rem',
+          borderRadius: '12px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(10, 136, 112, 0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          fontWeight: '600',
+          fontSize: '0.95rem',
+          fontFamily: 'var(--font-sans, sans-serif)',
+          animation: 'slideDownFade 0.3s ease-out',
+          maxWidth: '90%',
+          width: 'max-content'
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        <span>You have successfully submitted your interest!</span>
+        <button
+          onClick={() => setShowToast(false)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'rgba(255, 255, 255, 0.8)',
+            fontSize: '1.25rem',
+            cursor: 'pointer',
+            padding: '0 0 0 0.5rem',
+            lineHeight: 1,
+            display: 'flex',
+            alignItems: 'center',
+            marginLeft: 'auto'
+          }}
+          aria-label="Close notification"
+        >
+          ×
+        </button>
+      </div>,
+      document.body
+    )
+
   if (!plot) {
     return (
       <div 
@@ -210,23 +275,26 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
 
   if (submitted) {
     return (
-      <div 
-        className={`plot-mobile-card ${variant === 'sidebar' ? 'plot-mobile-card--sidebar' : ''}`}
-        style={{ 
-          height: 'auto', 
-          minHeight: '180px', 
-          padding: '1.5rem', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          justifyContent: 'center', 
-          gap: '1rem' 
-        }}
-      >
-        <h3 className="panel-title">Thank you!</h3>
-        <p>
-          We have received your interest for {isBuilding ? 'Unit' : 'Plot'} #{plot.number}. We will contact you shortly.
-        </p>
-      </div>
+      <>
+        <div 
+          className={`plot-mobile-card ${variant === 'sidebar' ? 'plot-mobile-card--sidebar' : ''}`}
+          style={{ 
+            height: 'auto', 
+            minHeight: '180px', 
+            padding: '1.5rem', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            justifyContent: 'center', 
+            gap: '1rem' 
+          }}
+        >
+          <h3 className="panel-title">Thank you!</h3>
+          <p>
+            We have received your interest for {isBuilding ? 'Unit' : 'Plot'} #{plot.number}. We will contact you shortly.
+          </p>
+        </div>
+        {toastNotification}
+      </>
     )
   }
 
@@ -258,12 +326,13 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
               </span>
               <h3 style={{ 
                 fontFamily: 'var(--font-display)', 
-                fontSize: '2.5rem', 
+                fontSize: '1.75rem', 
                 fontWeight: 800, 
                 margin: '0', 
-                lineHeight: 1 
+                lineHeight: 1,
+                color: '#1e293b'
               }}>
-                {isBuilding ? 'Unit' : 'Plot'} <span style={{ color: '#1f2937' }}>{plot.number}</span>
+                {isBuilding ? 'Unit' : 'Plot'} <span style={{ color: '#1e293b' }}>{plot.number}</span>
               </h3>
               {isBuilding && (plot.floor != null || plot.tower || plot.beds != null) && (
                 <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>
@@ -277,23 +346,23 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total area</span>
-                <span style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>{plot.areaCent} Cent</span>
+                <span style={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>{plot.areaCent} Cent</span>
                 <span style={{ fontSize: '0.85rem', color: '#64748b' }}>~ {(plot.areaSqft || 0).toLocaleString()} sqft</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Facing</span>
-                <span style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>{plot.facing || 'N/A'}</span>
+                <span style={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>{plot.facing || 'N/A'}</span>
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Est. price</span>
-                <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>{formatPrice(plot.estimatedPrice)}</span>
+                <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1e293b' }}>{formatPrice(plot.estimatedPrice)}</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price / sqft</span>
-                <span style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>₹{(plot.pricePerSqft || 0).toLocaleString()}</span>
+                <span style={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>₹{(plot.pricePerSqft || 0).toLocaleString()}</span>
               </div>
             </div>
 
@@ -383,15 +452,22 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
                     .filter(p => p.id !== plot.id && p.status === 'Available' && Math.abs((p.estimatedPrice || 0) - (plot.estimatedPrice || 0)) < 500000)
                     .slice(0, 3)
                     .map(sim => (
-                      <div key={sim.id} style={{ 
-                        minWidth: '140px', 
-                        padding: '1rem', 
-                        flexShrink: 0,
-                        background: '#fff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '0.75rem',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                      }}>
+                      <div 
+                        key={sim.id} 
+                        onClick={() => onSelectPlot?.(sim)}
+                        className="similar-plot-card-clickable"
+                        style={{ 
+                          minWidth: '140px', 
+                          padding: '1rem', 
+                          flexShrink: 0,
+                          background: '#fff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '0.75rem',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
                         <p style={{ fontWeight: 700, fontSize: '0.95rem', margin: '0 0 0.25rem', color: '#0f172a' }}>{isBuilding ? 'Unit' : 'Plot'} {sim.number}</p>
                         <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>{formatPrice(sim.estimatedPrice)}</p>
                       </div>
@@ -445,6 +521,7 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
         )}
       </div>
       {interestModal}
+      {toastNotification}
     </>
   )
 }

@@ -46,7 +46,10 @@ export default function CalibratePlotSidebar({
       {plots.length > 0 && (
         <>
           <p className="calibrate-sidebar-hint">
-            Click 4 corners on map for plot #{calibratePlotNum} · {calibPoints.length}/4
+            Click 4 corners on map for {(() => {
+              const activePlot = plots.find((p) => String(p.number) === String(calibratePlotNum));
+              return activePlot?.label || `plot #${calibratePlotNum}`;
+            })()} · {calibPoints.length}/4
           </p>
           <p className="calibrate-sidebar-hint calibrate-sidebar-zoom-hint">
             Scroll to zoom · Drag to pan · Double-click to reset
@@ -85,7 +88,7 @@ export default function CalibratePlotSidebar({
                   onClick={() => onCalibratePlotNumChange?.(plot.number)}
                   title={isCalibrated ? 'Already calibrated' : 'Click to calibrate this plot'}
                 >
-                  <span className="calibrate-plot-num">#{plot.number}</span>
+                  <span className="calibrate-plot-num">{plot.label || `${plot.prefix !== undefined ? plot.prefix : 'Unit'} ${plot.number}`}</span>
                   {isCalibrated ? (
                     <span className="calibrate-badge" aria-label="Calibrated">✓</span>
                   ) : (
@@ -115,41 +118,43 @@ export default function CalibratePlotSidebar({
                   </button>
                 </div>
               </div>
-              <div className="calibrate-plot-details">
-                <div className="calibrate-plot-row">
-                  <span>Area:</span>
-                  <span>{plot.areaCent} cent · {plot.areaSqft?.toLocaleString() ?? 0} sqft</span>
+              {title !== 'Facade floors' && (
+                <div className="calibrate-plot-details">
+                  <div className="calibrate-plot-row">
+                    <span>Area:</span>
+                    <span>{plot.areaCent} cent · {plot.areaSqft?.toLocaleString() ?? 0} sqft</span>
+                  </div>
+                  <div className="calibrate-plot-row">
+                    <span>Facing:</span>
+                    <span>{plot.facing}</span>
+                  </div>
+                  <div className="calibrate-plot-row">
+                    <span>Status:</span>
+                    <span className={`status-${(plot.status || 'available').toLowerCase()}`}>{plot.status}</span>
+                  </div>
+                  <div className="calibrate-plot-row calibrate-plot-row-price">
+                    <label>
+                      <span>₹/sqft</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={plot.pricePerSqft ?? ''}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10)
+                          const pps = isNaN(v) ? 0 : v
+                          const est = (plot.areaSqft || 0) * pps
+                          onUpdatePlot?.({ ...plot, pricePerSqft: pps, estimatedPrice: est })
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </label>
+                  </div>
+                  <div className="calibrate-plot-row calibrate-plot-est">
+                    <span>Est. price</span>
+                    <span>{formatPrice(estPrice)}</span>
+                  </div>
                 </div>
-                <div className="calibrate-plot-row">
-                  <span>Facing:</span>
-                  <span>{plot.facing}</span>
-                </div>
-                <div className="calibrate-plot-row">
-                  <span>Status:</span>
-                  <span className={`status-${(plot.status || 'available').toLowerCase()}`}>{plot.status}</span>
-                </div>
-                <div className="calibrate-plot-row calibrate-plot-row-price">
-                  <label>
-                    <span>₹/sqft</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={plot.pricePerSqft ?? ''}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value, 10)
-                        const pps = isNaN(v) ? 0 : v
-                        const est = (plot.areaSqft || 0) * pps
-                        onUpdatePlot?.({ ...plot, pricePerSqft: pps, estimatedPrice: est })
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </label>
-                </div>
-                <div className="calibrate-plot-row calibrate-plot-est">
-                  <span>Est. price</span>
-                  <span>{formatPrice(estPrice)}</span>
-                </div>
-              </div>
+              )}
             </li>
           )
         })}

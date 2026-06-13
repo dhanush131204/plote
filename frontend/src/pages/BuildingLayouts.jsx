@@ -70,9 +70,8 @@ export default function BuildingLayouts() {
         <div className="projects-grid">
           {buildingLayouts.map((layout) => {
             const totalFloors = layout.floors?.length || 0;
-            // Simple calculation for units - depending on your data structure.
-            // If units are inside floors:
-            const totalUnits = layout.floors?.reduce((acc, floor) => acc + (floor.units?.length || 0), 0) || 0;
+            // Count configurations (unit types) across all floors
+            const totalUnits = layout.floors?.reduce((acc, floor) => acc + (floor.configurations?.length || 0), 0) || 0;
 
             return (
               <div key={layout.id} className="project-card">
