@@ -27,11 +27,11 @@ function authMiddleware(req, res, next) {
           // Verify that the target user exists
           const targetUser = db.prepare('SELECT id FROM users WHERE id = ?').get(impersonateUserId)
           console.log('[AuthMiddleware] targetUser exists:', Boolean(targetUser))
-          if (targetUser) {
-            console.log('[AuthMiddleware] Impersonation SUCCESS. Overriding req.userId to:', targetUser.id)
-            req.userId = targetUser.id
-            return next()
-          }
+            if (targetUser) {
+              console.warn(`[SECURITY] [IMPERSONATION] Super Admin (ID: ${actualUserId}) is impersonating User (ID: ${targetUser.id}) on path ${req.method} ${req.path}`)
+              req.userId = targetUser.id
+              return next()
+            }
         }
       }
     }

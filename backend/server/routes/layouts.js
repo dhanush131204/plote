@@ -158,10 +158,16 @@ function parseBuildingInput(raw) {
         ? obj.towers.map((t) => ({ id: String(t.id || 'A'), label: t.label != null ? String(t.label) : String(t.id || 'A') }))
         : [{ id: 'A', label: 'Tower A' }]
     const floors = Array.isArray(obj.floors) ? obj.floors.map(normalizeFloorEntry).filter(Boolean) : []
+    
+    let embed3dUrl = obj.embed3dUrl != null ? String(obj.embed3dUrl) : null
+    if (embed3dUrl && !/^https?:\/\//i.test(embed3dUrl) && !/^\/\//.test(embed3dUrl)) {
+      embed3dUrl = null
+    }
+
     const out = {
       floors,
       towers,
-      embed3dUrl: obj.embed3dUrl != null ? String(obj.embed3dUrl) : null,
+      embed3dUrl,
       facadeImagePath: obj.facadeImagePath != null ? String(obj.facadeImagePath) : null,
     }
     return JSON.stringify(out)
@@ -398,6 +404,9 @@ router.put('/:id', requireAdmin, async (req, res) => {
       : layout.phaseInfo
 
     const webhookUrlVal = webhookUrl !== undefined ? webhookUrl : layout.webhookUrl
+    if (webhookUrlVal && webhookUrlVal.trim() !== '' && !/^https?:\/\//i.test(webhookUrlVal)) {
+      return res.status(400).json({ error: 'Invalid webhook URL protocol. Must start with http:// or https://' })
+    }
     const statusVal = status !== undefined ? status : layout.status
 
     db.prepare(`
@@ -515,56 +524,89 @@ router.put('/:id/apartment-media', requireAdmin, apartmentMediaUpload.single('fi
     const floorId = String(req.query?.floorId || req.body?.floorId || '').replace(/[^a-zA-Z0-9_-]/g, '')
     const configId = String(req.query?.configId || req.body?.configId || '').replace(/[^a-zA-Z0-9_-]/g, '')
     const kind = String(req.query?.kind || req.body?.kind || 'image').toLowerCase()
+    const plotId = String(req.query?.plotId || req.body?.plotId || '')
     if (!floorId || !configId) return res.status(400).json({ error: 'floorId and configId required' })
     if (kind !== 'image' && kind !== 'video') return res.status(400).json({ error: 'kind must be image or video' })
 
     const relPath = `Apartment/${layout.id}/${req.file.filename}`
-    let building = {}
-    try {
-      building = layout.building ? JSON.parse(layout.building) : {}
-    } catch {
-      building = {}
-    }
-    const floors = Array.isArray(building.floors) ? [...building.floors] : []
-    let idx = floors.findIndex((f) => f && f.id === floorId)
-    if (idx < 0) {
-      return res.status(400).json({ error: 'Floor not found on layout' })
-    }
-    const floor = { ...floors[idx] }
-    const configs = Array.isArray(floor.configurations) ? [...floor.configurations] : []
-    let cidx = configs.findIndex((c) => c && c.id === configId)
-    if (cidx < 0) {
-      configs.push({ id: configId, label: configId, imagePath: null, videoPath: null })
-      cidx = configs.length - 1
-    }
-    const cfg = { ...configs[cidx] }
     const roomId = String(req.query?.roomId || req.body?.roomId || '').replace(/[^a-zA-Z0-9_-]/g, '')
-    if (roomId) {
-      if (!cfg.rooms) cfg.rooms = {}
-      cfg.rooms[roomId] = relPath
-    }
-    if (kind === 'video') {
-      cfg.videoPath = relPath
+
+    if (plotId) {
+      // Save on individual plot/unit level
+      let plots = []
+      try {
+        plots = layout.plots ? JSON.parse(layout.plots) : []
+      } catch {
+        plots = []
+      }
+      const pidx = plots.findIndex((p) => String(p.id) === String(plotId))
+      if (pidx >= 0) {
+        const p = { ...plots[pidx] }
+        if (roomId) {
+          if (!p.rooms) p.rooms = {}
+          p.rooms[roomId] = relPath
+        }
+        if (kind === 'video') {
+          p.videoPath = relPath
+        } else {
+          p.imagePath = relPath
+          if (!Array.isArray(p.images)) {
+            p.images = p.imagePath ? [p.imagePath] : []
+          }
+          if (!p.images.includes(relPath)) {
+            p.images.push(relPath)
+          }
+        }
+        plots[pidx] = p
+      }
+      db.prepare('UPDATE layouts SET plots = ? WHERE id = ?').run(JSON.stringify(plots), layout.id)
     } else {
-      cfg.imagePath = relPath
-      if (!Array.isArray(cfg.images)) {
-        cfg.images = cfg.imagePath ? [cfg.imagePath] : []
+      // Fallback: Save on configuration template level
+      let building = {}
+      try {
+        building = layout.building ? JSON.parse(layout.building) : {}
+      } catch {
+        building = {}
       }
-      if (!cfg.images.includes(relPath)) {
-        cfg.images.push(relPath)
+      const floors = Array.isArray(building.floors) ? [...building.floors] : []
+      let idx = floors.findIndex((f) => f && f.id === floorId)
+      if (idx < 0) {
+        return res.status(400).json({ error: 'Floor not found on layout' })
       }
+      const floor = { ...floors[idx] }
+      const configs = Array.isArray(floor.configurations) ? [...floor.configurations] : []
+      let cidx = configs.findIndex((c) => c && c.id === configId)
+      if (cidx < 0) {
+        configs.push({ id: configId, label: configId, imagePath: null, videoPath: null })
+        cidx = configs.length - 1
+      }
+      const cfg = { ...configs[cidx] }
+      if (roomId) {
+        if (!cfg.rooms) cfg.rooms = {}
+        cfg.rooms[roomId] = relPath
+      }
+      if (kind === 'video') {
+        cfg.videoPath = relPath
+      } else {
+        cfg.imagePath = relPath
+        if (!Array.isArray(cfg.images)) {
+          cfg.images = cfg.imagePath ? [cfg.imagePath] : []
+        }
+        if (!cfg.images.includes(relPath)) {
+          cfg.images.push(relPath)
+        }
+      }
+      configs[cidx] = cfg
+      floor.configurations = configs
+      floors[idx] = floor
+      building.floors = floors
+      const buildingJson = parseBuildingInput(building)
+      db.prepare('UPDATE layouts SET building = ?, layoutKind = ? WHERE id = ?').run(buildingJson, 'building', layout.id)
     }
-    configs[cidx] = cfg
-    floor.configurations = configs
-    floors[idx] = floor
-    building.floors = floors
-    if (!Array.isArray(building.towers) || !building.towers.length) {
-      building.towers = [{ id: 'A', label: 'Tower A' }]
-    }
-    const buildingJson = parseBuildingInput(building)
-    db.prepare('UPDATE layouts SET building = ?, layoutKind = ? WHERE id = ?').run(buildingJson, 'building', layout.id)
+
     const full = db.prepare('SELECT * FROM layouts WHERE id = ?').get(layout.id)
-    res.json({ path: relPath, kind, building: parseLayout(full).building })
+    const parsed = parseLayout(full)
+    res.json({ path: relPath, kind, building: parsed.building, plots: parsed.plots })
   } catch (err) {
     res.status(500).json({ error: err.message || 'Server error' })
   }
@@ -572,12 +614,14 @@ router.put('/:id/apartment-media', requireAdmin, apartmentMediaUpload.single('fi
 
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
-    db.prepare('DELETE FROM leads WHERE layoutId = ?').run(req.params.id)
-    db.prepare('DELETE FROM activity_events WHERE layoutId = ?').run(req.params.id)
-    db.prepare('DELETE FROM layouts WHERE id = ?').run(req.params.id)
-    const imgDir = path.join(uploadDir, String(req.params.id))
+    const layout = await getLayoutForUser(req.params.id, req.userId)
+    if (!layout) return res.status(404).json({ error: 'Layout not found' })
+    db.prepare('DELETE FROM leads WHERE layoutId = ?').run(layout.id)
+    db.prepare('DELETE FROM activity_events WHERE layoutId = ?').run(layout.id)
+    db.prepare('DELETE FROM layouts WHERE id = ?').run(layout.id)
+    const imgDir = path.join(uploadDir, String(layout.id))
     if (fs.existsSync(imgDir)) fs.rmSync(imgDir, { recursive: true })
-    const aptDir = path.join(uploadDir, 'Apartment', String(req.params.id))
+    const aptDir = path.join(uploadDir, 'Apartment', String(layout.id))
     if (fs.existsSync(aptDir)) fs.rmSync(aptDir, { recursive: true })
     res.json({ success: true })
   } catch (err) {

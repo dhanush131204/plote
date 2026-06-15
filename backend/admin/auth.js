@@ -12,22 +12,22 @@ const authenticate = async (email, password) => {
                 if (valid) {
                     return {
                         email,
-                        role: 'admin',
+                        role: 'super_admin',
                     };
                 }
             }
         }
 
-        // 2. Check Database users with admin role
+        // 2. Check Database users with super_admin role
         const user = await prisma.user.findUnique({
             where: { email: email.toLowerCase().trim() }
         });
-        if (user && user.role === 'admin') {
+        if (user && user.role === 'super_admin') {
             const valid = await bcrypt.compare(password, user.passwordHash);
             if (valid) {
                 return {
                     email: user.email,
-                    role: 'admin',
+                    role: 'super_admin',
                 };
             }
         }

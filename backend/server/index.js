@@ -1,6 +1,16 @@
 const path = require('path')
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
 
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-secret-change-in-production') {
+    throw new Error('FATAL: JWT_SECRET environment variable is missing or set to default in production mode.')
+  }
+  const cookieSecret = process.env.COOKIE_SECRET
+  if (!cookieSecret || cookieSecret.includes('super-secret-password') || cookieSecret.includes('super-secret-session')) {
+    throw new Error('FATAL: COOKIE_SECRET environment variable is missing or set to default in production mode.')
+  }
+}
+
 const http = require('http')
 const express = require('express')
 const cors = require('cors')

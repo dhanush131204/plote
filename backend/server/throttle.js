@@ -18,4 +18,15 @@ function throttle({ windowMs = 60_000, max = 60 }) {
   }
 }
 
+// Clean up expired rate limiting buckets every 5 minutes to prevent unbounded memory leak
+setInterval(() => {
+  const now = Date.now()
+  for (const [ip, b] of buckets.entries()) {
+    // Evict bucket if it has been inactive longer than 10 minutes
+    if (now - b.start > 10 * 60_000) {
+      buckets.delete(ip)
+    }
+  }
+}, 5 * 60_000).unref()
+
 module.exports = { throttle }

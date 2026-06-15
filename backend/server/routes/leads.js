@@ -77,8 +77,9 @@ router.get('/me', authMiddleware, async (req, res) => {
       `SELECT l.*, layouts.name AS layoutName, layouts.slug AS layoutSlug
        FROM leads l
        JOIN layouts ON layouts.id = l.layoutId
+       WHERE LOWER(TRIM(l.customerEmail)) = ?
        ORDER BY l.createdAt DESC`
-    ).all()
+    ).all(email)
 
     const leads = rows
       .map((lead) => {
@@ -104,11 +105,10 @@ router.get('/me', authMiddleware, async (req, res) => {
           contactNumber: lead.contactNumber,
           status: lead.status || 'new',
           statusUpdatedAt: normalizeLeadDate(lead.statusUpdatedAt),
-          customerEmail: meta.email || null,
+          customerEmail: lead.customerEmail || null,
           createdAt: normalizeLeadDate(lead.createdAt),
         }
       })
-      .filter((lead) => String(lead.customerEmail || '').toLowerCase().trim() === email)
 
     res.json({ leads, total: leads.length })
   } catch (err) {

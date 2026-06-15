@@ -283,11 +283,21 @@ router.patch('/leads/:id/status', async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' })
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: Number(req.userId) },
+      select: { role: true }
+    })
+    const isSuperAdmin = user?.role === 'super_admin'
+
     const lead = await prisma.lead.findUnique({ 
       where: { id },
       include: { layout: true }
     })
     if (!lead) return res.status(404).json({ error: 'Lead not found' })
+
+    if (!isSuperAdmin && lead.layout.userId !== req.userId) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
 
     const updated = await prisma.lead.update({
       where: { id },
@@ -339,8 +349,21 @@ router.patch('/leads/:id/status', async (req, res) => {
 router.post('/leads/:id/push-webhook', async (req, res) => {
   try {
     const id = Number(req.params.id)
-    const lead = await prisma.lead.findUnique({ where: { id } })
+    const user = await prisma.user.findUnique({
+      where: { id: Number(req.userId) },
+      select: { role: true }
+    })
+    const isSuperAdmin = user?.role === 'super_admin'
+
+    const lead = await prisma.lead.findUnique({ 
+      where: { id },
+      include: { layout: true }
+    })
     if (!lead) return res.status(404).json({ error: 'Lead not found' })
+
+    if (!isSuperAdmin && lead.layout.userId !== req.userId) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
 
     const result = await sendLeadWebhook(id)
     if (!result.ok && result.error === 'Layout has no webhook URL') {

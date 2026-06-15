@@ -55,7 +55,7 @@ model Layout {
   status         String          @default("draft")
   createdAt      String?
   activityEvents ActivityEvent[]
-  user           User            @relation(fields: [userId], references: [id])
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   leads          Lead[]
 
   @@index([slug], map: "idx_layouts_slug")
@@ -78,7 +78,7 @@ model Lead {
   status             String  @default("new")
   statusUpdatedAt    String?
   createdAt          String?
-  layout             Layout  @relation(fields: [layoutId], references: [id])
+  layout             Layout  @relation(fields: [layoutId], references: [id], onDelete: Cascade)
 
   @@index([layoutId], map: "idx_leads_layoutId")
   @@map("leads")
@@ -92,7 +92,7 @@ model ActivityEvent {
   payload   String?
   userAgent String?
   createdAt String?
-  layout    Layout  @relation(fields: [layoutId], references: [id])
+  layout    Layout  @relation(fields: [layoutId], references: [id], onDelete: Cascade)
 
   @@index([sessionId], map: "idx_activity_session")
   @@index([layoutId, createdAt], map: "idx_activity_layout_created")
