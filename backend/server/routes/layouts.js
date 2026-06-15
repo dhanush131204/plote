@@ -179,12 +179,32 @@ function slugify(str) {
 
 router.get('/by-slug/:slug', (req, res) => {
   try {
-    const layout = db.prepare(
-      'SELECT id, name, slug, imagePath, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building, status FROM layouts WHERE slug = ?'
-    ).get(req.params.slug)
-    if (!layout) return res.status(404).json({ error: 'Layout not found' })
-    res.json(parseLayout(layout))
+    const row = db.prepare(`
+      SELECT l.id, l.userId, l.name, l.slug, l.imagePath, l.overlayConfig, l.plots, l.phaseInfo, l.webhookUrl, l.layoutKind, l.building, l.status,
+             u.companyName, u.name as builderName, u.logo as logoPath, u.rera, u.experience, u.projectsDelivered, u.phone as builderPhone, u.alternatePhone as builderAlternatePhone
+      FROM layouts l
+      LEFT JOIN users u ON l.userId = u.id
+      WHERE l.slug = ?
+    `).get(req.params.slug)
+    
+    if (!row) return res.status(404).json({ error: 'Layout not found' })
+    
+    const parsed = parseLayout(row)
+    parsed.owner = {
+      id: row.userId,
+      companyName: row.companyName || null,
+      name: row.builderName || null,
+      logoPath: row.logoPath || null,
+      rera: row.rera || null,
+      experience: row.experience != null ? Number(row.experience) : null,
+      projectsDelivered: row.projectsDelivered != null ? Number(row.projectsDelivered) : null,
+      phone: row.builderPhone || null,
+      alternatePhone: row.builderAlternatePhone || null
+    }
+    
+    res.json(parsed)
   } catch (err) {
+    console.error('Error in /by-slug/:slug:', err)
     res.status(500).json({ error: 'Server error' })
   }
 })

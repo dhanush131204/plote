@@ -98,6 +98,8 @@ router.get('/me', authMiddleware, async (req, res) => {
           unitFloor: meta.floor ?? null,
           unitTower: meta.tower ?? null,
           inventoryType: meta.inventoryType || null,
+          inquiryType: meta.inquiryType || null,
+          message: meta.message || null,
           customerName: lead.customerName,
           contactNumber: lead.contactNumber,
           status: lead.status || 'new',
@@ -116,7 +118,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 
 router.post('/', postThrottle, async (req, res) => {
   try {
-    const { layoutId, plotId, customerName, contactNumber, customerEmail } = req.body
+    const { layoutId, plotId, customerName, contactNumber, customerEmail, metadata, message, inquiryType } = req.body
     if (!layoutId || !plotId || !customerName || !contactNumber || !customerEmail?.trim()) {
       return res.status(400).json({ error: 'layoutId, plotId, customerName, contactNumber, customerEmail required' })
     }
@@ -126,12 +128,53 @@ router.post('/', postThrottle, async (req, res) => {
     }
     const layout = db.prepare('SELECT * FROM layouts WHERE id = ?').get(layoutId)
     if (!layout) return res.status(404).json({ error: 'Layout not found' })
-    const plots = layout.plots ? JSON.parse(layout.plots) : []
-    const plot = plots.find((p) => p.id == plotId || p.number == plotId)
-    if (!plot) return res.status(400).json({ error: 'Invalid plot' })
-
     const layoutKind = layout.layoutKind || 'plot'
-    const meta = { email: emailTrim }
+    const plots = layout.plots ? JSON.parse(layout.plots) : []
+    let plot = plots.find((p) => p.id == plotId || p.number == plotId)
+
+    if (!plot && layoutKind === 'building') {
+      const building = layout.building ? JSON.parse(layout.building) : null
+      if (building && Array.isArray(building.floors)) {
+        for (const floor of building.floors) {
+          if (floor.configurations && Array.isArray(floor.configurations)) {
+            floor.configurations.forEach((cfg, idx) => {
+              const generatedId = `${floor.id}-${cfg.id}`
+              const generatedNumber = `${(floor.sortOrder ?? 0) + 1}${String.fromCharCode(65 + idx)}`
+              if (plotId == generatedId || plotId == generatedNumber) {
+                plot = {
+                  id: generatedId,
+                  number: generatedNumber,
+                  floor: floor.id,
+                  tower: building.towers?.[0]?.id || 'A',
+                  configId: cfg.id
+                }
+              }
+            })
+          }
+        }
+      }
+    }
+
+    if (!plot) return res.status(400).json({ error: 'Invalid plot or unit' })
+
+    let parsedMeta = {}
+    if (typeof metadata === 'string' && metadata.trim()) {
+      try {
+        parsedMeta = JSON.parse(metadata)
+      } catch (err) {
+        parsedMeta = {}
+      }
+    } else if (metadata && typeof metadata === 'object') {
+      parsedMeta = metadata
+    }
+
+    const meta = {
+      email: emailTrim,
+      ...parsedMeta,
+      ...(typeof message === 'string' && message.trim() ? { message: message.trim() } : {}),
+      ...(typeof inquiryType === 'string' && inquiryType.trim() ? { inquiryType: inquiryType.trim() } : {}),
+    }
+
     let unitId = null
     if (layoutKind === 'building') {
       meta.inventoryType = 'unit'

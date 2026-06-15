@@ -253,6 +253,8 @@ router.get('/leads', async (req, res) => {
         unitFloor: meta.floor ?? null,
         unitTower: meta.tower ?? null,
         inventoryType: meta.inventoryType || null,
+        inquiryType: meta.inquiryType || null,
+        message: meta.message || null,
         customerName: r.customerName,
         contactNumber: r.contactNumber,
         status: r.status || 'new',

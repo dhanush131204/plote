@@ -23,6 +23,8 @@ model User {
   country             String?
   gst                 String?
   rera                String?
+  experience          Int?
+  projectsDelivered   Int?
   website             String?
   about               String?
   facebook            String?

@@ -38,7 +38,7 @@ router.put('/me', authMiddleware, async (req, res) => {
   try {
     const {
       name, companyName, phone, alternatePhone, address, city, state, country,
-      gst, rera, website, about, facebook, instagram, linkedin, youtube, documents
+      gst, rera, experience, projectsDelivered, website, about, facebook, instagram, linkedin, youtube, documents
     } = req.body
     
     const updated = await prisma.user.update({
@@ -54,6 +54,8 @@ router.put('/me', authMiddleware, async (req, res) => {
         country: country || null,
         gst: gst || null,
         rera: rera || null,
+        experience: experience ? parseInt(experience, 10) : null,
+        projectsDelivered: projectsDelivered ? parseInt(projectsDelivered, 10) : null,
         website: website || null,
         about: about || null,
         facebook: facebook || null,
