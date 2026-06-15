@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useGetAdminUsersQuery, useUpdateAdminUserMutation, useCreateAdminUserMutation, useDeleteAdminUserMutation } from '../api/apiSlice';
 
 export default function ManageAdmins() {
@@ -6,6 +7,7 @@ export default function ManageAdmins() {
   const [updateUser] = useUpdateAdminUserMutation();
   const [createUser] = useCreateAdminUserMutation();
   const [deleteUser] = useDeleteAdminUserMutation();
+  const location = useLocation();
   
   const [isModalOpen, setModalOpen] = useState(false);
   const [selectedBuilder, setSelectedBuilder] = useState(null);
@@ -22,6 +24,15 @@ export default function ManageAdmins() {
   useEffect(() => {
     setCurrentPage(1);
   }, [search]);
+
+  // Open add modal if redirecting from quick actions sidebar link
+  useEffect(() => {
+    if (location.search.includes('add=true')) {
+      setModalOpen(true);
+      // Clear URL parameter so subsequent clicks re-trigger this logic properly
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [location]);
 
   const handleImpersonate = (user) => {
     if (user.role === 'super_admin') {

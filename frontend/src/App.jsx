@@ -18,7 +18,6 @@ import ManageAdmins from './pages/ManageAdmins'
 import GlobalProjects from './pages/GlobalProjects'
 import LayoutBuilder from './pages/LayoutBuilder'
 import BuildingLayoutBuilder from './pages/BuildingLayoutBuilder'
-import CreateBuildingPage from './pages/CreateBuildingPage'
 import PublicView from './pages/PublicView'
 import ProjectsPage from './pages/ProjectsPage'
 import SavedPlotsPage from './pages/SavedPlotsPage'
@@ -54,7 +53,7 @@ export default function App() {
         <Route path="/users" element={<Users />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/create" element={<LayoutBuilder />} />
-        <Route path="/create/building" element={<CreateBuildingPage />} />
+        <Route path="/create/building" element={<BuildingLayoutBuilder />} />
         <Route path="/layout/:id/edit/building" element={<BuildingLayoutBuilder />} />
         <Route path="/layout/:id/edit" element={<LayoutBuilder />} />
       </Route>

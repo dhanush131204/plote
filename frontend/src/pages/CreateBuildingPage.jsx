@@ -1,59 +1,92 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useCreateLayoutMutation } from '../api/apiSlice'
 import { defaultBuilding } from '../utils/buildingSchema'
 
 export default function CreateBuildingPage() {
-  const [createLayout] = useCreateLayoutMutation()
+  const [createLayout, { isLoading: creating }] = useCreateLayoutMutation()
+  const [name, setName] = useState('Untitled building')
   const [error, setError] = useState('')
   const navigate = useNavigate()
-  const createdRef = useRef(false)
 
-  useEffect(() => {
-    if (createdRef.current) return
-    createdRef.current = true
-
-    const doCreate = async () => {
-      try {
-        const created = await createLayout({
-          name: 'Untitled building',
-          layoutKind: 'building',
-          building: defaultBuilding(),
-        }).unwrap()
-        
-        const newId = created?.id
-        if (newId != null) {
-          navigate(`/layout/${newId}/edit/building`, { replace: true })
-        } else {
-          setError('Server did not return a layout id.')
-        }
-      } catch (err) {
-        setError(err.data?.error || err.message || 'Failed to create layout')
-      }
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    if (!name.trim()) {
+      setError('Building name is required.')
+      return
     }
-    
-    doCreate()
-  }, [createLayout, navigate])
+    setError('')
+    try {
+      const created = await createLayout({
+        name: name.trim(),
+        layoutKind: 'building',
+        building: defaultBuilding(),
+      }).unwrap()
+      
+      const newId = created?.id
+      if (newId != null) {
+        toast.success(`Building project "${name}" created successfully!`)
+        navigate(`/layout/${newId}/edit/building`, { replace: true })
+      } else {
+        setError('Server did not return a layout ID.')
+      }
+    } catch (err) {
+      setError(err.data?.error || err.message || 'Failed to create layout')
+    }
+  }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '80vh' }}>
-      <div style={{ padding: '3rem', background: '#fff', borderRadius: '16px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', textAlign: 'center', maxWidth: '400px' }}>
-        {error ? (
-          <>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>⚠️</div>
-            <h3 style={{ margin: '0 0 1rem', color: '#ef4444' }}>Creation Failed</h3>
-            <p style={{ color: '#64748b', fontSize: '0.95rem' }}>{error}</p>
-            <button onClick={() => navigate(-1)} className="btn-secondary" style={{ marginTop: '1.5rem' }}>Go Back</button>
-          </>
-        ) : (
-          <>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🏗️</div>
-            <h3 style={{ margin: '0 0 0.5rem', color: '#1e293b' }}>Creating Workspace</h3>
-            <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>Setting up your new building layout...</p>
-          </>
-        )}
-      </div>
+    <div className="dashboard-container">
+      <section className="welcome-banner">
+        <div className="welcome-content">
+          <p className="section-kicker">New Project</p>
+          <h1 className="welcome-title">Create Building Workspace</h1>
+          <p className="welcome-subtitle">Set up the initial workspace properties for your building layout.</p>
+        </div>
+      </section>
+
+      {error && <div className="dashboard-error">{error}</div>}
+
+      <section className="profile-grid" style={{ marginTop: '1.5rem', maxWidth: '600px' }}>
+        <div className="profile-panel">
+          <h2>Workspace Properties</h2>
+          <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1rem' }}>
+            <label className="builder-field">
+              Building Name
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="e.g. Green Crest Apartments"
+                className="builder-input-block"
+                style={{ marginTop: '0.5rem' }}
+                disabled={creating}
+              />
+            </label>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="btn-secondary"
+                style={{ flex: 1 }}
+                disabled={creating}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn-primary"
+                style={{ flex: 1 }}
+                disabled={creating}
+              >
+                {creating ? 'Creating...' : 'Create Workspace'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
     </div>
   )
 }

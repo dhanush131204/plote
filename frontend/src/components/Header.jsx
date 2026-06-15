@@ -1,9 +1,9 @@
 export default function Header() {
   return (
     <header className="header">
-      <div className="header-logo">Plot Listing</div>
+      <div className="header-logo">PlotVision</div>
       <nav className="header-nav">
-        <span className="header-tagline">Buy & Sell Land</span>
+        <span className="header-tagline">Interactive Site Showrooms</span>
       </nav>
     </header>
   )

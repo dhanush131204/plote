@@ -148,6 +148,24 @@ export default function Leads() {
                     // Ignore
                   }
 
+                  const lowerType = (inquiryType || 'Booking').toLowerCase();
+                  let badgeBg = '#f1f5f9';
+                  let badgeText = '#475569';
+                  let badgeBorder = '#cbd5e1';
+                  let icon = '💬';
+
+                  if (lowerType.includes('visit')) {
+                    badgeBg = '#eff6ff';
+                    badgeText = '#1d4ed8';
+                    badgeBorder = '#bfdbfe';
+                    icon = '📅';
+                  } else if (lowerType.includes('booking')) {
+                    badgeBg = '#ecfdf5';
+                    badgeText = '#047857';
+                    badgeBorder = '#a7f3d0';
+                    icon = '⚡';
+                  }
+
                   return (
                   <tr key={l.id} style={{
                     borderTop: '1px solid var(--color-border)', 
@@ -169,9 +187,24 @@ export default function Leads() {
                         <span style={{ color: '#1e293b', fontSize: '0.9rem', lineHeight: '1.4', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                           {leadMessage || '—'}
                         </span>
-                        <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
-                          Type: {inquiryType || 'Booking'}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '0.7rem',
+                            fontWeight: '700',
+                            background: badgeBg,
+                            color: badgeText,
+                            border: `1px solid ${badgeBorder}`,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.02em'
+                          }}>
+                            {icon} {inquiryType}
+                          </span>
+                        </div>
                       </div>
                     </td>
                     <td style={{padding: '1.25rem 1.5rem'}}>

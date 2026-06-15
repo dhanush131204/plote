@@ -25,6 +25,16 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
   }, [showToast])
 
   useEffect(() => {
+    if (submitted) {
+      const timer = setTimeout(() => {
+        setSubmitted(false)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+    return undefined
+  }, [submitted])
+
+  useEffect(() => {
     if (!plot?.id) return
     const saved = JSON.parse(localStorage.getItem('savedPlots') || '[]')
     setIsSaved(saved.some(p => p.id === plot.id))

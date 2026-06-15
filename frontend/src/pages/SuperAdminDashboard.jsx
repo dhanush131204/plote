@@ -90,22 +90,7 @@ export default function SuperAdminDashboard() {
             <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Disabled Accounts</div>
           </div>
 
-          <div className="stat-card" style={{ 
-            background: 'rgba(255, 255, 255, 0.65)', 
-            backdropFilter: 'blur(12px)',
-            padding: '1.25rem', 
-            borderRadius: '16px', 
-            boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.03)', 
-            border: '1px solid rgba(255, 255, 255, 0.7)', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: '0.5rem',
-            transition: 'transform 0.2s ease'
-          }}>
-            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Projects</span>
-            <span style={{ fontSize: '2.75rem', fontWeight: '800', color: '#1e293b' }}>{analytics?.totalProjects || 0}</span>
-            <div style={{ fontSize: '0.85rem', color: '#0a8870', fontWeight: 600 }}>Across all builders</div>
-          </div>
+
 
         </div>
       </section>

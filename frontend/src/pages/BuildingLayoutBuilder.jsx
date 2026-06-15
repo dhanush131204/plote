@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   useGetLayoutByIdQuery,
+  useCreateLayoutMutation,
   useUpdateLayoutMutation,
   useUploadFacadeImageMutation,
   useUploadFloorImageMutation,
@@ -32,7 +33,8 @@ export default function BuildingLayoutBuilder() {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  const { data: fetchedLayout, error: queryError } = useGetLayoutByIdQuery(id)
+  const { data: fetchedLayout, error: queryError } = useGetLayoutByIdQuery(id, { skip: !id })
+  const [createLayout, { isLoading: creating }] = useCreateLayoutMutation()
   const [updateLayout, { isLoading: saving }] = useUpdateLayoutMutation()
   const [uploadFacadeImage] = useUploadFacadeImageMutation()
   const [uploadFloorImage] = useUploadFloorImageMutation()
@@ -65,6 +67,44 @@ export default function BuildingLayoutBuilder() {
   const [unitGuideMessage, setUnitGuideMessage] = useState('')
   const [uploadingMedia, setUploadingMedia] = useState(null) // { configId, kind }
   const [editUnitNamePlot, setEditUnitNamePlot] = useState(null)
+
+  useEffect(() => {
+    if (!id) {
+      setLoading(false)
+      setStep(0)
+      setName('Untitled building')
+      setSlug('untitled-building')
+      setBuilding(defaultBuilding())
+      setOverlayConfig(emptyBuildingOverlay())
+      setPlots([])
+    }
+  }, [id])
+
+  const handleStep1Next = async () => {
+    if (!name.trim()) return
+    if (!id) {
+      try {
+        setError('')
+        const created = await createLayout({
+          name: name.trim(),
+          layoutKind: 'building',
+          building: defaultBuilding(),
+        }).unwrap()
+        
+        const newId = created?.id
+        if (newId != null) {
+          navigate(`/layout/${newId}/edit/building`, { replace: true })
+          setStep(1)
+        } else {
+          setError('Server did not return a layout ID.')
+        }
+      } catch (err) {
+        setError(err.data?.error || err.message || 'Failed to create layout')
+      }
+    } else {
+      setStep(1)
+    }
+  }
 
   const handleDeleteFacadeFloor = (plot) => {
     setBuilding((b) => ({
@@ -144,6 +184,12 @@ export default function BuildingLayoutBuilder() {
         setFacadeCalibrateKey(prev => prev || sorted[0].id)
       }
       if ((fetchedLayout.plots || []).length) setCalibratePlotNum(fetchedLayout.plots[0].number)
+
+      if (bRaw.facadeImagePath) {
+        setStep(prev => prev === 0 ? 2 : prev)
+      } else {
+        setStep(prev => prev === 0 ? 1 : prev)
+      }
       setLoading(false)
     }
   }, [id, fetchedLayout, navigate])
@@ -638,15 +684,38 @@ export default function BuildingLayoutBuilder() {
                 />
               </div>
 
-              <button 
-                type="button" 
-                onClick={() => setStep(1)} 
-                className="btn-primary" 
-                style={{ width: '100%', padding: '0.85rem', borderRadius: '8px', fontWeight: 700 }}
-                disabled={!name.trim()}
-              >
-                Next: Upload Building Image
-              </button>
+              {id ? (
+                <button 
+                  type="button" 
+                  onClick={handleStep1Next} 
+                  className="btn-primary" 
+                  style={{ width: '100%', padding: '0.85rem', borderRadius: '8px', fontWeight: 700 }}
+                  disabled={!name.trim()}
+                >
+                  Next: Upload Building Image
+                </button>
+              ) : (
+                <div style={{ display: 'flex', gap: '1rem', width: '100%' }}>
+                  <button 
+                    type="button" 
+                    onClick={() => navigate(-1)} 
+                    className="btn-secondary" 
+                    style={{ flex: 1, padding: '0.85rem', borderRadius: '8px', fontWeight: 700 }}
+                    disabled={creating}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={handleStep1Next} 
+                    className="btn-primary" 
+                    style={{ flex: 1, padding: '0.85rem', borderRadius: '8px', fontWeight: 700 }}
+                    disabled={!name.trim() || creating}
+                  >
+                    {creating ? 'Creating...' : 'Next'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

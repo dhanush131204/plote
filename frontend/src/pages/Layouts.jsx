@@ -61,95 +61,156 @@ export default function Layouts() {
 
   return (
     <div className="dashboard-container">
-      <div className="dashboard-intro" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem', flexWrap: 'wrap', gap: '1.5rem' }}>
-        <div>
-          <h1 style={{fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem'}}>My Projects</h1>
-          <p style={{color: 'var(--color-text-muted)'}}>Manage all your plot maps and building layouts.</p>
+      {/* Group header and filters together to bypass the container's 3rem flex gap */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '0.5rem' }}>
+        {/* Page Header with Pinned Action Buttons in Top Right Corner */}
+        <div className="dashboard-intro" style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          flexWrap: 'wrap', 
+          gap: '1.5rem'
+        }}>
+          <div>
+            <h1 style={{fontFamily: 'var(--font-display)', fontSize: '2.2rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.5rem'}}>My Projects</h1>
+            <p style={{color: 'var(--color-text-muted)', fontSize: '0.95rem'}}>Manage all your plot maps and building layouts.</p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <button 
+              style={{ 
+                height: '2.85rem', 
+                padding: '0.75rem 1.5rem', 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#0f172a',
+                fontWeight: '600',
+                fontSize: '0.95rem',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.15s ease'
+              }} 
+              onClick={() => navigate('/create/building')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#f8fafc';
+                e.currentTarget.style.borderColor = '#94a3b8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#ffffff';
+                e.currentTarget.style.borderColor = '#cbd5e1';
+              }}
+            >
+              + New Building
+            </button>
+            <button 
+              style={{ 
+                height: '2.85rem', 
+                padding: '0.75rem 1.5rem', 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                borderRadius: '6px',
+                border: 'none',
+                background: '#059669', // Emerald/green color
+                color: '#ffffff',
+                fontWeight: '600',
+                fontSize: '0.95rem',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.15s ease'
+              }} 
+              onClick={() => navigate('/create')}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#047857'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#059669'}
+            >
+              + New Plot Map
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Filter & Search Toolbar inline */}
-          {layouts.length > 0 && (
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              flexWrap: 'wrap'
-            }}>
-              {/* Always visible Search Input Box */}
-              <div style={{ width: '220px', display: 'flex', alignItems: 'center', position: 'relative' }}>
-                <svg style={{ position: 'absolute', left: '10px', color: '#94a3b8', pointerEvents: 'none' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                <input
-                  type="text"
-                  placeholder="Search projects..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.55rem 0.85rem 0.55rem 2.2rem',
-                    borderRadius: '8px',
-                    border: '1px solid var(--color-border)',
-                    outline: 'none',
-                    background: '#fff',
-                    color: 'var(--color-text)',
-                    fontSize: '0.9rem',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-                  }}
-                />
-              </div>
-
-              {/* Type Filter */}
-              <div style={{ minWidth: '130px' }}>
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.65rem 0.85rem',
-                    borderRadius: '8px',
-                    border: '1px solid var(--color-border)',
-                    outline: 'none',
-                    background: '#fff',
-                    color: 'var(--color-text)',
-                    fontSize: '0.9rem',
-                    cursor: 'pointer',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-                  }}
-                >
-                  <option value="All">All Types</option>
-                  <option value="plot">Plot Maps</option>
-                  <option value="building">Buildings</option>
-                </select>
-              </div>
-
-              {/* Status Filter */}
-              <div style={{ minWidth: '130px' }}>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.65rem 0.85rem',
-                    borderRadius: '8px',
-                    border: '1px solid var(--color-border)',
-                    outline: 'none',
-                    background: '#fff',
-                    color: 'var(--color-text)',
-                    fontSize: '0.9rem',
-                    cursor: 'pointer',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-                  }}
-                >
-                  <option value="All">All Statuses</option>
-                  <option value="published">Published</option>
-                  <option value="draft">Draft</option>
-                </select>
-              </div>
+  
+        {/* Filter & Search Toolbar */}
+        {layouts.length > 0 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            flexWrap: 'wrap',
+            marginTop: '0.5rem'
+          }}>
+            {/* Always visible Search Input Box */}
+            <div style={{ width: '280px', display: 'flex', alignItems: 'center', position: 'relative' }}>
+              <svg style={{ position: 'absolute', left: '12px', color: '#94a3b8', pointerEvents: 'none' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input
+                type="text"
+                placeholder="Search projects..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.65rem 0.85rem 0.65rem 2.4rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--color-border)',
+                  outline: 'none',
+                  background: '#fff',
+                  color: 'var(--color-text)',
+                  fontSize: '0.9rem',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+                }}
+              />
             </div>
-          )}
-
-          <button className="btn-secondary" style={{ height: '2.5rem', display: 'flex', alignItems: 'center' }} onClick={() => navigate('/create/building')}>+ New Building</button>
-          <button className="btn-primary" style={{ height: '2.5rem', display: 'flex', alignItems: 'center' }} onClick={() => navigate('/create')}>+ New Plot Map</button>
-        </div>
+  
+            {/* Type Filter */}
+            <div style={{ minWidth: '150px' }}>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--color-border)',
+                  outline: 'none',
+                  background: '#fff',
+                  color: 'var(--color-text)',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+                }}
+              >
+                <option value="All">All Types</option>
+                <option value="plot">Plot Maps</option>
+                <option value="building">Buildings</option>
+              </select>
+            </div>
+  
+            {/* Status Filter */}
+            <div style={{ minWidth: '150px' }}>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--color-border)',
+                  outline: 'none',
+                  background: '#fff',
+                  color: 'var(--color-text)',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+                }}
+              >
+                <option value="All">All Statuses</option>
+                <option value="published">Published</option>
+                <option value="draft">Draft</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {error && <div className="dashboard-error">Error loading layouts.</div>}
