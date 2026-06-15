@@ -156,7 +156,7 @@ export default function Admin() {
                   <tr style={{background: 'var(--color-bg-wash)'}}>
                     <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Date</th>
                     <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Project</th>
-                    <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Unit / Plot</th>
+                    <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Type (Plot or Building)</th>
                     <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Contact Name</th>
                     <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Phone / Email</th>
                     <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Status</th>
@@ -168,7 +168,7 @@ export default function Admin() {
                     <tr key={l.id} style={{borderTop: '1px solid var(--color-border)'}}>
                       <td style={{padding: '1rem'}}>{formatDate(l.createdAt)}</td>
                       <td style={{padding: '1rem', fontWeight: '500'}}>{l.layoutName}</td>
-                      <td style={{padding: '1rem'}}>{l.unitId || l.plotId} {l.unitTower ? `(${l.unitTower})` : ''}</td>
+                      <td style={{padding: '1rem'}}>{l.unitId ? 'Building' : 'Plot'}</td>
                       <td style={{padding: '1rem', fontWeight: '500'}}>{l.customerName}</td>
                       <td style={{padding: '1rem', color: 'var(--color-text-muted)', fontSize: '0.875rem'}}>
                         <div>{l.contactNumber}</div>

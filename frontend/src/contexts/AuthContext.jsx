@@ -1,9 +1,11 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { useGetMeQuery, useLoginMutation, useSignupMutation } from '../api/apiSlice'
+import { useGetMeQuery, useLoginMutation, useSignupMutation, apiSlice } from '../api/apiSlice'
+import { useDispatch } from 'react-redux'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
+  const dispatch = useDispatch()
   const [token, setToken] = useState(() => localStorage.getItem('token'))
   const [user, setUser] = useState(null)
 
@@ -56,6 +58,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('impersonateUserId')
     setToken(null)
     setUser(null)
+    dispatch(apiSlice.util.resetApiState())
   }
 
   const isAdmin = user?.role === 'admin'

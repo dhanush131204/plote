@@ -343,39 +343,67 @@ export default function Custom3DWalkthrough({ rooms = [], defaultRoomId, onClose
 
       {/* Interactive Walkthrough Navigation Arrows (Hotspots Overlayed on screen coords) */}
       {roomHotspots.map((hotspot, idx) => {
+        const targetRoomName = rooms.find(r => String(r.id) === String(hotspot.targetRoomId))?.name || 'Next Room'
         return (
-          <button
+          <div
             key={idx}
-            onClick={() => setCurrentRoomId(hotspot.targetRoomId)}
             style={{
               position: 'absolute',
               left: hotspot.x || '50%',
               top: hotspot.y || '60%',
               transform: 'translate(-50%, -50%)',
-              background: 'rgba(16, 185, 129, 0.85)',
-              border: '2px solid #ffffff',
-              color: '#ffffff',
-              borderRadius: '50%',
-              width: '50px',
-              height: '50px',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 0 15px rgba(16, 185, 129, 0.6), 0 4px 6px rgba(0,0,0,0.3)',
+              gap: '6px',
               zIndex: 2050,
-              animation: 'bouncePulse 2s infinite',
-              transition: 'all 0.25s'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.1)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)'}
-            title={`Go to ${rooms.find(r => r.id === hotspot.targetRoomId)?.name || 'Next Room'}`}
           >
-            {/* Arrow Up SVG icon */}
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="18 15 12 9 6 15" />
-            </svg>
-          </button>
+            {/* Room Name Label */}
+            <div style={{
+              background: 'rgba(15, 23, 42, 0.85)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              borderRadius: '6px',
+              padding: '4px 10px',
+              color: '#ffffff',
+              fontSize: '0.7rem',
+              fontWeight: '700',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+              pointerEvents: 'none',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em'
+            }}>
+              {targetRoomName}
+            </div>
+
+            <button
+              onClick={() => setCurrentRoomId(hotspot.targetRoomId)}
+              style={{
+                background: 'rgba(16, 185, 129, 0.9)',
+                border: '2px solid #ffffff',
+                color: '#ffffff',
+                borderRadius: '50%',
+                width: '46px',
+                height: '46px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                animation: 'bouncePulse 2s infinite',
+                transition: 'all 0.25s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              title={`Go to ${targetRoomName}`}
+            >
+              {/* Arrow Up SVG icon */}
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="18 15 12 9 6 15" />
+              </svg>
+            </button>
+          </div>
         )
       })}
 
@@ -383,12 +411,12 @@ export default function Custom3DWalkthrough({ rooms = [], defaultRoomId, onClose
       <style>{`
         @keyframes bouncePulse {
           0%, 100% {
-            transform: translate(-50%, -50%) translateY(0);
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
+            transform: translateY(0);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
           }
           50% {
-            transform: translate(-50%, -50%) translateY(-6px);
-            box-shadow: 0 0 25px rgba(16, 185, 129, 0.9);
+            transform: translateY(-5px);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.9);
           }
         }
       `}</style>

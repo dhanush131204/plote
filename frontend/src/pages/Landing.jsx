@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import landingBg from '../assets/landing_bg.png'
 
 export default function Landing() {
   const { user, login } = useAuth()
@@ -36,7 +37,12 @@ export default function Landing() {
   }
 
   return (
-    <div className="landing-page">
+    <div className="landing-page" style={{
+      backgroundImage: `linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.3) 100%), url(${landingBg})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat'
+    }}>
       <div className="landing-inner">
         <aside className="landing-aside">
           <p className="landing-kicker">Digital real estate showroom</p>

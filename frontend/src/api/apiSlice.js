@@ -185,8 +185,8 @@ export const apiSlice = createApi({
       ],
     }),
     uploadApartmentMedia: builder.mutation({
-      query: ({ id, floorId, configId, kind, roomId, formData }) => ({
-        url: `/api/layouts/${id}/apartment-media?floorId=${encodeURIComponent(floorId)}&configId=${encodeURIComponent(configId)}&kind=${kind}${roomId ? `&roomId=${encodeURIComponent(roomId)}` : ''}`,
+      query: ({ id, floorId, configId, kind, roomId, plotId, formData }) => ({
+        url: `/api/layouts/${id}/apartment-media?floorId=${encodeURIComponent(floorId)}&configId=${encodeURIComponent(configId)}&kind=${kind}${roomId ? `&roomId=${encodeURIComponent(roomId)}` : ''}${plotId ? `&plotId=${encodeURIComponent(plotId)}` : ''}`,
         method: 'PUT',
         body: formData,
       }),

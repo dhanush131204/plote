@@ -11,11 +11,21 @@ export default function PremiumBuyerBuildingView({ layout }) {
   const [walkthroughOpen, setWalkthroughOpen] = useState(false)
   const [interestModalOpen, setInterestModalOpen] = useState(false)
   const [isFloorDropdownOpen, setIsFloorDropdownOpen] = useState(false)
+  const [currentStep, setCurrentStep] = useState('facade') // 'facade' or 'floorplan'
+  const [facadeAspectRatio, setFacadeAspectRatio] = useState(16 / 10)
+
+  const handleFacadeImageLoad = (e) => {
+    const img = e.target
+    if (img?.naturalWidth && img?.naturalHeight) {
+      setFacadeAspectRatio(img.naturalWidth / img.naturalHeight)
+    }
+  }
   
   // Lead submission states
   const [customerName, setCustomerName] = useState('')
   const [contactNumber, setContactNumber] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
+  const [customerMessage, setCustomerMessage] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [createLead, { isLoading: submittingLead }] = useCreateLeadMutation()
   const [leadError, setLeadError] = useState('')
@@ -81,7 +91,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
         : `${apiBase}/uploads/${img}`
     )
 
-    const roomsMap = config?.rooms || {}
+    const roomsMap = unit.rooms || config?.rooms || {}
     const roomKeys = Object.keys(roomsMap).filter(k => !!roomsMap[k])
     
     let generatedRooms = []
@@ -214,6 +224,38 @@ export default function PremiumBuyerBuildingView({ layout }) {
     return { total: floorUnits.length, available, booked, sold }
   }, [floorUnits])
 
+  const allFloorsStats = useMemo(() => {
+    const stats = {}
+    sortedFloors.forEach(f => {
+      const plottedUnits = (layout?.plots || []).filter(p => String(p.floor) === String(f.id))
+      let units = []
+      if (plottedUnits.length > 0) {
+        units = plottedUnits
+      } else if (f.configurations?.length) {
+        units = f.configurations.map((cfg, idx) => ({
+          status: cfg.status || 'Available'
+        }))
+      }
+      
+      const available = units.filter(u => (u.status || 'Available').toLowerCase() === 'available').length
+      const booked = units.filter(u => (u.status || '').toLowerCase() === 'booked' || (u.status || '').toLowerCase() === 'pending').length
+      const sold = units.filter(u => (u.status || '').toLowerCase() === 'sold').length
+      
+      let color = '#ef4444' // red
+      if (available > 0) color = '#10b981' // green
+      else if (booked > 0) color = '#f59e0b' // yellow
+      
+      stats[f.id] = {
+        total: units.length,
+        available,
+        booked,
+        sold,
+        color
+      }
+    })
+    return stats
+  }, [sortedFloors, layout])
+
   const formatPrice = (price) => {
     if (!price || price <= 0) return 'Contact for Price'
     return new Intl.NumberFormat('en-IN', {
@@ -237,7 +279,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
         customerName: customerName.trim(),
         contactNumber: contactNumber.trim(),
         customerEmail: customerEmail.trim(),
-        metadata: JSON.stringify({ inquiryType: 'Booking' })
+        metadata: JSON.stringify({ message: customerMessage.trim(), inquiryType: 'Booking' })
       }).unwrap()
       setSubmitted(true)
       setInterestModalOpen(false)
@@ -245,6 +287,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
       setCustomerName('')
       setContactNumber('')
       setCustomerEmail('')
+      setCustomerMessage('')
     } catch (err) {
       setLeadError(err.data?.error || err.message || 'Failed to submit request.')
     }
@@ -584,183 +627,437 @@ export default function PremiumBuyerBuildingView({ layout }) {
       `}</style>
 
       {/* LEFT CONTENT VIEW - Hero Section and Interactive Plan */}
-      <div className="premium-buyer-main">
-        {/* Floor Plan Card */}
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '24px',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.02)',
-          flex: 1,
-          position: 'relative',
-          overflow: 'hidden',
-          minHeight: '520px',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          {/* Interactive plan banner and legend */}
+      {currentStep === 'facade' ? (
+        <div className="premium-buyer-main">
+          {/* Facade Step Main Card */}
           <div style={{
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '1.25rem 1.5rem',
-            borderBottom: '1px solid #f1f5f9',
-            background: '#ffffff',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            zIndex: 10
+            gap: '2rem',
+            flex: 1,
+            flexDirection: 'row',
+            flexWrap: 'wrap'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-              <h1 style={{
-                fontSize: '1.25rem',
-                fontWeight: 800,
-                margin: 0,
-                color: '#0f172a',
-                letterSpacing: '-0.01em',
-              }}>
-                {layout?.name || 'Building Layout'}
-              </h1>
-              
-              <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
-              
-              {/* Floor picker dropdown styled luxury */}
-              <div className="luxury-select-wrapper" style={{ position: 'relative', zIndex: 9999 }}>
-                <div 
-                  className="luxury-select" 
-                  style={{ 
-                    padding: '0.5rem 2rem 0.5rem 1rem', 
-                    fontSize: '0.85rem', 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    minWidth: '120px',
-                    userSelect: 'none',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontWeight: 600,
-                    color: '#334155',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => setIsFloorDropdownOpen(!isFloorDropdownOpen)}
-                >
-                  {currentFloor?.label || `Floor ${(currentFloor?.sortOrder ?? 0) + 1}`}
-                  <svg style={{ position: 'absolute', right: '0.75rem' }} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </div>
-                
-                {isFloorDropdownOpen && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    marginTop: '0.5rem',
-                    width: '100%',
-                    minWidth: '150px',
-                    background: '#ffffff',
-                    borderRadius: '12px',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                    overflowY: 'auto',
-                    maxHeight: '250px',
-                    zIndex: 99999,
-                    border: '1px solid #e2e8f0',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    padding: '0.5rem 0'
-                  }}>
-                    {sortedFloors.map(f => (
-                      <button
-                        key={f.id}
-                        onClick={() => {
-                          setSelectedFloorId(f.id)
-                          setSelectedUnit(null)
-                          setIsFloorDropdownOpen(false)
-                        }}
-                        style={{
-                          padding: '0.75rem 1.25rem',
-                          background: selectedFloorId === f.id ? '#f8fafc' : 'transparent',
-                          border: 'none',
-                          textAlign: 'left',
-                          width: '100%',
-                          cursor: 'pointer',
-                          color: selectedFloorId === f.id ? '#10b981' : '#334155',
-                          fontWeight: selectedFloorId === f.id ? '700' : '500',
-                          fontSize: '0.9rem',
-                          transition: 'background 0.2s ease',
-                          outline: 'none'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (selectedFloorId !== f.id) e.target.style.background = '#f1f5f9'
-                        }}
-                        onMouseLeave={(e) => {
-                          if (selectedFloorId !== f.id) e.target.style.background = 'transparent'
-                        }}
-                      >
-                        {f.label || `Floor ${(f.sortOrder ?? 0) + 1}`}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Building Statistics Chips */}
-            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
-                <span>{overallStats.total} Units</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#047857', background: '#ecfdf5', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #a7f3d0' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-                <span>{overallStats.available} Available</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#b45309', background: '#fffbeb', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #fde68a' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b' }} />
-                <span>{overallStats.booked} Booked</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c', background: '#fef2f2', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #fecaca' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }} />
-                <span>{overallStats.sold} Sold</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Map canvas wrapper */}
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            {currentFloor?.imagePath ? (
-              <ImagePlotMapView
-                imageSrc={currentFloor.imagePath.startsWith('http') || currentFloor.imagePath.startsWith('data:') || currentFloor.imagePath.startsWith('blob:') ? currentFloor.imagePath : `${import.meta.env.VITE_API_URL || ''}/uploads/${currentFloor.imagePath}`}
-                overlayConfig={layout?.overlayConfig?.byFloor?.[selectedFloorId] || {}}
-                plots={floorUnits}
-                selectedPlot={selectedUnit}
-                onSelectPlot={(p) => {
-                  setSelectedUnit(p)
-                  setActiveImageIdx(0)
-                }}
-                zoomPanEnabled={true}
-                useZoomLayout={true}
-                emptyMessage="No units calibrated on this floor layout."
-              />
-            ) : (
+            {/* Facade Model Interactive Viewer */}
+            <div style={{
+              flex: '1.6 1 400px',
+              background: '#ffffff',
+              borderRadius: '24px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 10px 30px rgba(15, 23, 42, 0.02)',
+              position: 'relative',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: '500px'
+            }}>
               <div style={{
+                padding: '1.5rem',
+                borderBottom: '1px solid #f1f5f9',
                 display: 'flex',
-                flexDirection: 'column',
+                justifyContent: 'space-between',
                 alignItems: 'center',
-                justifyContent: 'center',
-                flex: 1,
-                minHeight: '400px',
-                padding: '3rem',
-                textAlign: 'center',
-                color: '#64748b',
-                background: '#fafafa'
+                flexWrap: 'wrap',
+                gap: '1rem'
               }}>
-                <span style={{ fontSize: '3rem', marginBottom: '1rem' }}>🗺️</span>
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>No interactive layout uploaded</h3>
-                <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', maxWidth: '320px', lineHeight: 1.5 }}>
-                  This floor has no background floor plan map. Please inspect unit configurations in the details panel.
-                </p>
+                <div>
+                  <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                    {layout?.name || 'Building Layout'}
+                  </h1>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
+                    Select a floor on the building model or use the floor stack to explore floor plans.
+                  </p>
+                </div>
               </div>
-            )}
+
+              {/* Building Facade Graphic Wrapper */}
+              <div style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: '450px', background: '#0a0f1d', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{
+                  position: 'relative',
+                  width: '100%',
+                  aspectRatio: facadeAspectRatio,
+                  maxHeight: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <img 
+                    onLoad={handleFacadeImageLoad}
+                    src={layout?.building?.facadeImagePath ? `${import.meta.env.VITE_API_URL || ''}/uploads/${layout.building.facadeImagePath}` : 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80'} 
+                    alt="Building Facade Model" 
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill', display: 'block' }} 
+                  />
+
+                  {/* SVG Polygon Layers on Facade */}
+                  <svg
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 10 }}
+                  >
+                    {sortedFloors.map(f => {
+                      const points = layout?.overlayConfig?.facadeByFloor?.[f.id]?.points
+                      if (!points || !points.length) return null
+                      const ptsStr = points.map(([x, y]) => `${x},${y}`).join(' ')
+                      const stats = allFloorsStats[f.id] || { available: 0, booked: 0, sold: 0 }
+                      
+                      let statusClass = 'available'
+                      if (stats.available > 0) {
+                        statusClass = 'available'
+                      } else if (stats.booked > 0) {
+                        statusClass = 'booked'
+                      } else {
+                        statusClass = 'sold'
+                      }
+
+                      return (
+                        <polygon
+                          key={f.id}
+                          points={ptsStr}
+                          onClick={() => {
+                            setSelectedFloorId(f.id)
+                            setSelectedUnit(null)
+                            setCurrentStep('floorplan')
+                          }}
+                          style={{
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                          }}
+                          className={`image-plot-overlay-shape status-${statusClass}`}
+                        />
+                      )
+                    })}
+                  </svg>
+
+                  {/* Float Centered Label Markers */}
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 20 }}>
+                    {sortedFloors.map(f => {
+                      const points = layout?.overlayConfig?.facadeByFloor?.[f.id]?.points
+                      if (!points || !points.length) return null
+                      const cx = points.reduce((s, [x]) => s + x, 0) / points.length
+                      const cy = points.reduce((s, [, y]) => s + y, 0) / points.length
+                      const stats = allFloorsStats[f.id] || { color: '#10b981' }
+
+                      return (
+                        <div
+                          key={f.id}
+                          style={{
+                            position: 'absolute',
+                            left: `${cx}%`,
+                            top: `${cy}%`,
+                            transform: 'translate(-50%, -50%)',
+                            background: 'rgba(15, 23, 42, 0.95)',
+                            backdropFilter: 'blur(8px)',
+                            border: `1.5px solid ${stats.color}`,
+                            color: '#ffffff',
+                            borderRadius: '8px',
+                            padding: '6px 12px',
+                            fontSize: '0.725rem',
+                            fontWeight: '800',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          <span style={{ color: '#ffffff' }}>{f.label || `Floor ${(f.sortOrder ?? 0) + 1}`}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Facade Side Stack Selection */}
+            <div style={{
+              flex: '1 1 300px',
+              background: '#ffffff',
+              borderRadius: '24px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 10px 30px rgba(15, 23, 42, 0.02)',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+              maxHeight: '600px',
+              overflowY: 'auto'
+            }} className="custom-scrollbar">
+              <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Building Floors
+              </h2>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {[...sortedFloors].reverse().map(f => {
+                  const stats = allFloorsStats[f.id] || { total: 0, available: 0, booked: 0, sold: 0, color: '#ef4444' }
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => {
+                        setSelectedFloorId(f.id)
+                        setSelectedUnit(null)
+                        setCurrentStep('floorplan')
+                      }}
+                      style={{
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderLeft: `4px solid ${stats.color}`,
+                        borderRadius: '12px',
+                        padding: '1.2rem',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                        width: '100%',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.01)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#ffffff';
+                        e.currentTarget.style.borderColor = '#cbd5e1';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(15, 23, 42, 0.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#f8fafc';
+                        e.currentTarget.style.borderColor = '#e2e8f0';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.01)';
+                      }}
+                    >
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: '#1e293b' }}>
+                          {f.label || `Floor ${(f.sortOrder ?? 0) + 1}`}
+                        </h4>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '600' }}>
+                          Total Units: {stats.total}
+                        </span>
+                      </div>
+                      
+                      {/* Color-Coded Counts */}
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: '700', padding: '0.25rem 0.5rem', borderRadius: '8px', background: '#ecfdf5', color: '#059669' }}>
+                          {stats.available} Available
+                        </span>
+                        <span style={{ fontSize: '0.7rem', fontWeight: '700', padding: '0.25rem 0.5rem', borderRadius: '8px', background: '#fffbeb', color: '#d97706' }}>
+                          {stats.booked} Booked
+                        </span>
+                        <span style={{ fontSize: '0.7rem', fontWeight: '700', padding: '0.25rem 0.5rem', borderRadius: '8px', background: '#fef2f2', color: '#dc2626' }}>
+                          {stats.sold} Sold
+                        </span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="premium-buyer-main">
+          {/* Floor Plan Card */}
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '24px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 10px 30px rgba(15, 23, 42, 0.02)',
+            flex: 1,
+            position: 'relative',
+            overflow: 'hidden',
+            minHeight: '520px',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Interactive plan banner and legend */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1.25rem 1.5rem',
+              borderBottom: '1px solid #f1f5f9',
+              background: '#ffffff',
+              flexWrap: 'wrap',
+              gap: '1rem',
+              zIndex: 10
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => {
+                    setCurrentStep('facade')
+                    setSelectedUnit(null)
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    padding: '0.4rem 0.8rem',
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                    color: '#475569',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.borderColor = '#94a3b8'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                  Building Model
+                </button>
+
+                <h1 style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 800,
+                  margin: 0,
+                  color: '#0f172a',
+                  letterSpacing: '-0.01em',
+                }}>
+                  {layout?.name || 'Building Layout'}
+                </h1>
+                
+                <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
+                
+                {/* Floor picker dropdown styled luxury */}
+                <div className="luxury-select-wrapper" style={{ position: 'relative', zIndex: 9999 }}>
+                  <div 
+                    className="luxury-select" 
+                    style={{ 
+                      padding: '0.5rem 2rem 0.5rem 1rem', 
+                      fontSize: '0.85rem', 
+                      display: 'flex', 
+                      alignItems: 'center',
+                      minWidth: '120px',
+                      userSelect: 'none',
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      color: '#334155',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => setIsFloorDropdownOpen(!isFloorDropdownOpen)}
+                  >
+                    {currentFloor?.label || `Floor ${(currentFloor?.sortOrder ?? 0) + 1}`}
+                    <svg style={{ position: 'absolute', right: '0.75rem' }} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </div>
+                  
+                  {isFloorDropdownOpen && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      marginTop: '0.5rem',
+                      width: '100%',
+                      minWidth: '150px',
+                      background: '#ffffff',
+                      borderRadius: '12px',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                      overflowY: 'auto',
+                      maxHeight: '250px',
+                      zIndex: 99999,
+                      border: '1px solid #e2e8f0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      padding: '0.5rem 0'
+                    }}>
+                      {sortedFloors.map(f => (
+                        <button
+                          key={f.id}
+                          onClick={() => {
+                            setSelectedFloorId(f.id)
+                            setSelectedUnit(null)
+                            setIsFloorDropdownOpen(false)
+                          }}
+                          style={{
+                            padding: '0.75rem 1.25rem',
+                            background: selectedFloorId === f.id ? '#f8fafc' : 'transparent',
+                            border: 'none',
+                            textAlign: 'left',
+                            width: '100%',
+                            cursor: 'pointer',
+                            color: selectedFloorId === f.id ? '#10b981' : '#334155',
+                            fontWeight: selectedFloorId === f.id ? '700' : '500',
+                            fontSize: '0.9rem',
+                            transition: 'background 0.2s ease',
+                            outline: 'none'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (selectedFloorId !== f.id) e.target.style.background = '#f1f5f9'
+                          }}
+                          onMouseLeave={(e) => {
+                            if (selectedFloorId !== f.id) e.target.style.background = 'transparent'
+                          }}
+                        >
+                          {f.label || `Floor ${(f.sortOrder ?? 0) + 1}`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Building Statistics Chips */}
+              <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
+                  <span>{overallStats.total} Units</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#047857', background: '#ecfdf5', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #a7f3d0' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
+                  <span>{overallStats.available} Available</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#b45309', background: '#fffbeb', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #fde68a' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b' }} />
+                  <span>{overallStats.booked} Booked</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c', background: '#fef2f2', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #fecaca' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }} />
+                  <span>{overallStats.sold} Sold</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Map canvas wrapper */}
+            <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              {currentFloor?.imagePath ? (
+                <ImagePlotMapView
+                  imageSrc={currentFloor.imagePath.startsWith('http') || currentFloor.imagePath.startsWith('data:') || currentFloor.imagePath.startsWith('blob:') ? currentFloor.imagePath : `${import.meta.env.VITE_API_URL || ''}/uploads/${currentFloor.imagePath}`}
+                  overlayConfig={layout?.overlayConfig?.byFloor?.[selectedFloorId] || {}}
+                  plots={floorUnits}
+                  selectedPlot={selectedUnit}
+                  onSelectPlot={(p) => {
+                    setSelectedUnit(p)
+                    setActiveImageIdx(0)
+                  }}
+                  zoomPanEnabled={true}
+                  useZoomLayout={true}
+                  emptyMessage="No units calibrated on this floor layout."
+                />
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flex: 1,
+                  minHeight: '400px',
+                  padding: '3rem',
+                  textAlign: 'center',
+                  color: '#64748b',
+                  background: '#fafafa'
+                }}>
+                  <span style={{ fontSize: '3rem', marginBottom: '1rem' }}>🗺️</span>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>No interactive layout uploaded</h3>
+                  <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', maxWidth: '320px', lineHeight: 1.5 }}>
+                    This floor has no background floor plan map. Please inspect unit configurations in the details panel.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* RIGHT SIDEBAR - Property Specs & Contact Panel */}
       <aside className="premium-buyer-sidebar custom-scrollbar">
@@ -1157,77 +1454,119 @@ export default function PremiumBuyerBuildingView({ layout }) {
         ) : (
           /* Empty Details State - Render curated project brochure summary */
           <div style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', gap: '2rem', height: '100%', overflowY: 'auto' }} className="custom-scrollbar">
-            <div>
-              <span style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                color: '#10b981',
-                textTransform: 'uppercase',
-                letterSpacing: '0.15em',
-                display: 'inline-block',
-                marginBottom: '0.5rem'
-              }}>
-                Project Overview
-              </span>
-              <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.25 }}>
-                Building Summary
-              </h2>
-            </div>
-            
-            {/* Overall Statistics Summary Card */}
-            <div style={{
-              background: '#ffffff',
-              borderRadius: '24px',
-              border: '1px solid #e2e8f0',
-              padding: '1.5rem',
-              boxShadow: '0 4px 15px rgba(15, 23, 42, 0.02)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1.25rem'
-            }}>
-              <h4 style={{ margin: 0, fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Availability Chart
-              </h4>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
-                <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Total Units</span>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>{overallStats.total}</span>
+            {currentStep === 'facade' ? (
+              <>
+                <div>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: '#10b981',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.15em',
+                    display: 'inline-block',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Interactive Explorer
+                  </span>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.25 }}>
+                    Explore Residences
+                  </h2>
                 </div>
-                <div style={{ background: '#ecfdf5', padding: '1rem', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#047857', fontWeight: 600 }}>Available</span>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#059669' }}>{overallStats.available}</span>
-                </div>
-                <div style={{ background: '#fffbeb', padding: '1rem', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#b45309', fontWeight: 600 }}>Booked</span>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#d97706' }}>{overallStats.booked}</span>
-                </div>
-                <div style={{ background: '#fef2f2', padding: '1rem', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#b91c1c', fontWeight: 600 }}>Sold</span>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#dc2626' }}>{overallStats.sold}</span>
-                </div>
-              </div>
-            </div>
 
-            {/* Info Interactive prompt */}
-            <div style={{
-              background: '#f8fafc',
-              border: '1px dashed #cbd5e1',
-              borderRadius: '24px',
-              padding: '2rem 1.5rem',
-              textAlign: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '1rem',
-              color: '#475569'
-            }}>
-              <span style={{ fontSize: '2.5rem', animation: 'bounce 2.5s infinite' }}>🗺️</span>
-              <p style={{ margin: 0, fontSize: '0.925rem', fontWeight: 600, lineHeight: 1.6, color: '#475569' }}>
-                Select any unit on the interactive floor map to explore floor dimensions, estimated pricing, 360° tour galleries, 3D walkthroughs, and check real-time availability.
-              </p>
-            </div>
+                <div style={{
+                  background: '#f8fafc',
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: '24px',
+                  padding: '2.5rem 1.5rem',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '1rem',
+                  color: '#475569'
+                }}>
+                  <span style={{ fontSize: '2.5rem' }}>🏢</span>
+                  <p style={{ margin: 0, fontSize: '0.925rem', fontWeight: 600, lineHeight: 1.6, color: '#475569' }}>
+                    Select a floor on the building model or choose from the list to view blueprints, check unit availability, and view 3D walkthrough tours.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: '#10b981',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.15em',
+                    display: 'inline-block',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Project Overview
+                  </span>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.25 }}>
+                    Building Summary
+                  </h2>
+                </div>
+
+                {/* Overall Statistics Summary Card */}
+                <div style={{
+                  background: '#ffffff',
+                  borderRadius: '24px',
+                  border: '1px solid #e2e8f0',
+                  padding: '1.5rem',
+                  boxShadow: '0 4px 15px rgba(15, 23, 42, 0.02)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1.25rem'
+                }}>
+                  <h4 style={{ margin: 0, fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Availability Chart
+                  </h4>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+                    <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Total Units</span>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>{overallStats.total}</span>
+                    </div>
+                    <div style={{ background: '#ecfdf5', padding: '1rem', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#047857', fontWeight: 600 }}>Available</span>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#059669' }}>{overallStats.available}</span>
+                    </div>
+                    <div style={{ background: '#fffbeb', padding: '1rem', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#b45309', fontWeight: 600 }}>Booked</span>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#d97706' }}>{overallStats.booked}</span>
+                    </div>
+                    <div style={{ background: '#fef2f2', padding: '1rem', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#b91c1c', fontWeight: 600 }}>Sold</span>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#dc2626' }}>{overallStats.sold}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Info Interactive prompt */}
+                <div style={{
+                  background: '#f8fafc',
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: '24px',
+                  padding: '2rem 1.5rem',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '1rem',
+                  color: '#475569'
+                }}>
+                  <span style={{ fontSize: '2.5rem', animation: 'bounce 2.5s infinite' }}>🗺️</span>
+                  <p style={{ margin: 0, fontSize: '0.925rem', fontWeight: 600, lineHeight: 1.6, color: '#475569' }}>
+                    Select any unit on the interactive floor map to explore floor dimensions, estimated pricing, 360° tour galleries, 3D walkthroughs, and check real-time availability.
+                  </p>
+                </div>
+              </>
+            )}
 
             {/* Builder Contact Card for general query */}
             <div style={{
@@ -1499,6 +1838,37 @@ export default function PremiumBuyerBuildingView({ layout }) {
                     e.currentTarget.style.boxShadow = 'inset 0 1px 2px rgba(0,0,0,0.02)'
                   }}
                   required
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Message / Requirements</label>
+                <textarea 
+                  placeholder="Enter your message or requirements" 
+                  value={customerMessage}
+                  onChange={(e) => setCustomerMessage(e.target.value)}
+                  rows={3}
+                  style={{
+                    padding: '0.85rem 1rem',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    background: '#ffffff',
+                    color: '#0f172a',
+                    outline: 'none',
+                    fontSize: '0.95rem',
+                    transition: 'all 0.2s ease',
+                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)',
+                    fontFamily: 'inherit',
+                    resize: 'vertical'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#10b981'
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.15)'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#e2e8f0'
+                    e.currentTarget.style.boxShadow = 'inset 0 1px 2px rgba(0,0,0,0.02)'
+                  }}
                 />
               </div>
 

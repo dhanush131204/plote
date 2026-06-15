@@ -191,34 +191,6 @@ export default function GlobalProjects() {
                     >
                       View Public
                     </button>
-                    <button
-                      onClick={() => handleDelete(layout.id, layout.name)}
-                      style={{
-                        padding: '0.6rem 1.25rem',
-                        background: '#ef4444',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontWeight: '600',
-                        fontSize: '0.85rem',
-                        boxShadow: '0 2px 4px rgba(239, 68, 68, 0.15)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.5rem'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.background = '#dc2626';
-                        e.target.style.boxShadow = '0 4px 8px rgba(239, 68, 68, 0.25)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.background = '#ef4444';
-                        e.target.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.15)';
-                      }}
-                    >
-                      Delete
-                    </button>
                   </div>
                 </td>
               </tr>

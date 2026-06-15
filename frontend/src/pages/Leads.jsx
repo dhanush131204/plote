@@ -117,7 +117,7 @@ export default function Leads() {
                 <tr style={{background: '#f8fafc', borderBottom: '2px solid #e2e8f0'}}>
                   <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Date</th>
                   <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Project</th>
-                  <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Unit / Plot</th>
+                  <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Type (Plot or Building)</th>
                   <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Contact Name</th>
                   <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Message / Requirements</th>
                   <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Phone / Email</th>
@@ -158,38 +158,7 @@ export default function Leads() {
                     <td style={{padding: '1.25rem 1.5rem', fontWeight: '700', color: '#1e293b', fontSize: '0.9rem'}}>{l.layoutName}</td>
                     <td style={{padding: '1.25rem 1.5rem', color: '#334155', fontWeight: '500', fontSize: '0.9rem'}}>
                       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                        <span>{l.unitId || l.plotId} {l.unitTower ? `(${l.unitTower})` : ''}</span>
-                        {inquiryType.toLowerCase().includes('visit') ? (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '2px 8px',
-                            borderRadius: '12px',
-                            fontSize: '0.7rem',
-                            fontWeight: '700',
-                            background: '#eff6ff',
-                            color: '#1d4ed8',
-                            border: '1px solid #bfdbfe'
-                          }}>
-                            📅 site visit
-                          </span>
-                        ) : (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '2px 8px',
-                            borderRadius: '12px',
-                            fontSize: '0.7rem',
-                            fontWeight: '700',
-                            background: '#ecfdf5',
-                            color: '#047857',
-                            border: '1px solid #a7f3d0'
-                          }}>
-                            ⚡ booking
-                          </span>
-                        )}
+                        <span>{l.unitId ? 'Building' : 'Plot'}</span>
                       </div>
                     </td>
                     <td style={{padding: '1.25rem 1.5rem'}}>

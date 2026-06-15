@@ -515,39 +515,7 @@ export default function PublicPlotMapView({ layout }) {
               </div>
             </div>
 
-            {/* Price Range Slider */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>
-                <span>MAX PRICE BOUNDARY</span>
-                <span style={{ color: '#10b981' }}>{formatPrice(priceRange[1])}</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max={minMaxValues.maxPrice}
-                step="50000"
-                value={priceRange[1]}
-                onChange={e => setPriceRange([priceRange[0], parseInt(e.target.value, 10)])}
-                style={{ width: '100%', accentColor: '#10b981', cursor: 'pointer' }}
-              />
-            </div>
 
-            {/* Area Range Slider */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>
-                <span>MAX PLOT AREA (CENT)</span>
-                <span style={{ color: '#10b981' }}>{areaRange[1]} Cent</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max={minMaxValues.maxArea}
-                step="0.1"
-                value={areaRange[1]}
-                onChange={e => setAreaRange([areaRange[0], parseFloat(e.target.value)])}
-                style={{ width: '100%', accentColor: '#10b981', cursor: 'pointer' }}
-              />
-            </div>
 
             {/* Compare Dashboard Widget */}
             {compareList.length > 0 && (

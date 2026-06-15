@@ -255,7 +255,7 @@ export default function BuildingLayoutBuilder() {
     })
   }
 
-  const uploadApartmentMedia = async (floorId, configId, kind, file, roomId = null) => {
+  const uploadApartmentMedia = async (floorId, configId, kind, file, roomId = null, plotId = null) => {
     if (!file) return
     setError('')
     setUploadingMedia({ configId, kind, roomId })
@@ -281,10 +281,11 @@ export default function BuildingLayoutBuilder() {
         configId,
         kind,
         roomId,
+        plotId,
         formData: fd,
       }).unwrap()
       if (res.building) setBuilding(res.building)
-      toast.success(`${roomId ? `${roomId.toUpperCase()} ` : ''}${kind === 'image' ? 'Image' : 'Video'} uploaded successfully!`)
+      if (res.plots) setPlots(res.plots)
     } catch (err) {
       setError(err.data?.error || err.message || 'Upload failed')
     } finally {
@@ -348,28 +349,42 @@ export default function BuildingLayoutBuilder() {
     })
   }
 
-  const handleDeleteRoomMedia = (configId, kind, roomId) => {
-    setBuilding((b) => {
-      const floors = (b.floors || []).map((f) => {
-        if (f.id !== selectedFloorId) return f
-        const configs = (f.configurations || []).map((c) => {
-          if (c.id !== configId) return c
+  const handleDeleteRoomMedia = (configId, kind, roomId, plotId = null) => {
+    if (plotId) {
+      setPlots((prev) =>
+        prev.map((p) => {
+          if (String(p.id) !== String(plotId)) return p
           if (kind === 'image') {
-            const updatedRooms = { ...c.rooms }
+            const updatedRooms = { ...p.rooms }
             delete updatedRooms[roomId]
-            return { ...c, rooms: updatedRooms }
+            return { ...p, rooms: updatedRooms }
           }
-          if (kind === 'video') {
-            const updatedVideos = { ...c.roomVideos }
-            delete updatedVideos[roomId]
-            return { ...c, roomVideos: updatedVideos }
-          }
-          return c
+          return p
         })
-        return { ...f, configurations: configs }
+      )
+    } else {
+      setBuilding((b) => {
+        const floors = (b.floors || []).map((f) => {
+          if (f.id !== selectedFloorId) return f
+          const configs = (f.configurations || []).map((c) => {
+            if (c.id !== configId) return c
+            if (kind === 'image') {
+              const updatedRooms = { ...c.rooms }
+              delete updatedRooms[roomId]
+              return { ...c, rooms: updatedRooms }
+            }
+            if (kind === 'video') {
+              const updatedVideos = { ...c.roomVideos }
+              delete updatedVideos[roomId]
+              return { ...c, roomVideos: updatedVideos }
+            }
+            return c
+          })
+          return { ...f, configurations: configs }
+        })
+        return { ...b, floors }
       })
-      return { ...b, floors }
-    })
+    }
     toast.success('Room media removed.')
   }
 
@@ -973,10 +988,11 @@ export default function BuildingLayoutBuilder() {
                                               roomsList.push({ id: `bedroom${i}`, label: `Bed ${i}` })
                                             }
                                             roomsList.push({ id: 'bathroom', label: 'Bath' })
+                                            roomsList.push({ id: 'balcony', label: 'Balcony' })
 
                                             return roomsList.map(rm => {
                                               const isUploading = uploadingMedia?.configId === cfg.id && uploadingMedia?.kind === 'image' && uploadingMedia?.roomId === rm.id
-                                              const rawImageVal = cfg.rooms?.[rm.id]
+                                              const rawImageVal = unit.rooms?.[rm.id] || cfg.rooms?.[rm.id]
                                               const imageVal = rawImageVal && !rawImageVal.includes('unsplash.com') ? rawImageVal : null
                                               return (
                                                 <div key={rm.id} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -990,7 +1006,7 @@ export default function BuildingLayoutBuilder() {
                                                       />
                                                       <button
                                                         type="button"
-                                                        onClick={() => handleDeleteRoomMedia(cfg.id, 'image', rm.id)}
+                                                        onClick={() => handleDeleteRoomMedia(cfg.id, 'image', rm.id, unit.id)}
                                                         style={{
                                                           position: 'absolute',
                                                           top: '2px',
@@ -1032,7 +1048,7 @@ export default function BuildingLayoutBuilder() {
                                                         disabled={isUploading}
                                                         onChange={(e) => {
                                                           const file = e.target.files?.[0]
-                                                          if (file) uploadApartmentMedia(selectedFloorId, cfg.id, 'image', file, rm.id)
+                                                          if (file) uploadApartmentMedia(selectedFloorId, cfg.id, 'image', file, rm.id, unit.id)
                                                         }}
                                                         style={{ display: 'none' }}
                                                       />

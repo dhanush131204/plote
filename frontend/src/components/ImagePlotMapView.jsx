@@ -27,6 +27,17 @@ export default function ImagePlotMapView({
   const hasPlots = plots && plots.length > 0
   const [imageAspectRatio, setImageAspectRatio] = useState(16 / 10)
   const [calibPoints, setCalibPoints] = useState([])
+  const [hoveredPlotState, setHoveredPlotState] = useState(null)
+  const [hoverCoords, setHoverCoords] = useState({ x: 0, y: 0 })
+
+  const formatPrice = (price) => {
+    if (!price || price <= 0) return 'Contact for Price'
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(price)
+  }
 
   let initialScale = 1
   let initialPositionX = 0
@@ -181,7 +192,7 @@ export default function ImagePlotMapView({
             const overlay = getPlotOverlay(plot)
             const isSelected = selectedPlot?.id === plot.id
 
-            if (overlay.type === 'polygon') {
+             if (overlay.type === 'polygon') {
               const pts = overlay.points.map(([x, y]) => `${x},${y}`).join(' ')
               return (
                 <polygon
@@ -189,8 +200,18 @@ export default function ImagePlotMapView({
                   className={`image-plot-overlay-shape status-${(plot.status || 'available').toLowerCase()} ${isSelected ? 'selected' : ''}`}
                   points={pts}
                   onClick={() => onSelectPlot?.(plot)}
-                  onMouseEnter={(e) => onHoverPlot?.(plot, e)}
-                  onMouseLeave={() => onHoverPlot?.(null)}
+                  onMouseEnter={(e) => {
+                    setHoveredPlotState(plot)
+                    setHoverCoords({ x: e.clientX, y: e.clientY })
+                    onHoverPlot?.(plot, e)
+                  }}
+                  onMouseMove={(e) => {
+                    setHoverCoords({ x: e.clientX, y: e.clientY })
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredPlotState(null)
+                    onHoverPlot?.(null)
+                  }}
                 />
               )
             }
@@ -207,8 +228,18 @@ export default function ImagePlotMapView({
                 height={height}
                 transform={rotation ? `rotate(${rotation} ${cx} ${cy})` : ''}
                 onClick={() => onSelectPlot?.(plot)}
-                onMouseEnter={(e) => onHoverPlot?.(plot, e)}
-                onMouseLeave={() => onHoverPlot?.(null)}
+                onMouseEnter={(e) => {
+                  setHoveredPlotState(plot)
+                  setHoverCoords({ x: e.clientX, y: e.clientY })
+                  onHoverPlot?.(plot, e)
+                }}
+                onMouseMove={(e) => {
+                  setHoverCoords({ x: e.clientX, y: e.clientY })
+                }}
+                onMouseLeave={() => {
+                  setHoveredPlotState(null)
+                  onHoverPlot?.(null)
+                }}
               />
             )
           })}
@@ -345,6 +376,62 @@ export default function ImagePlotMapView({
       )}
 
       {detailsSide !== 'left' && detailsEl}
+
+      {hoveredPlotState && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${hoverCoords.x}px`,
+            top: `${hoverCoords.y - 12}px`,
+            transform: 'translate(-50%, -100%)',
+            pointerEvents: 'none',
+            zIndex: 999999,
+            background: 'rgba(15, 23, 42, 0.95)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '12px',
+            padding: '10px 14px',
+            boxShadow: '0 8px 20px rgba(0, 0, 0, 0.2)',
+            color: '#ffffff',
+            fontFamily: "'Inter', sans-serif",
+            minWidth: '160px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 800 }}>
+              Unit {hoveredPlotState.number}
+            </span>
+            <span
+              style={{
+                fontSize: '0.6rem',
+                fontWeight: 800,
+                padding: '2px 6px',
+                borderRadius: '10px',
+                textTransform: 'uppercase',
+                background: hoveredPlotState.status?.toLowerCase() === 'available' ? '#ecfdf5' : (hoveredPlotState.status?.toLowerCase() === 'booked' ? '#fffbeb' : '#fef2f2'),
+                color: hoveredPlotState.status?.toLowerCase() === 'available' ? '#10b981' : (hoveredPlotState.status?.toLowerCase() === 'booked' ? '#f59e0b' : '#ef4444')
+              }}
+            >
+              {hoveredPlotState.status || 'Available'}
+            </span>
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
+            <span style={{ color: '#94a3b8' }}>Beds:</span>
+            <span>{hoveredPlotState.beds ? `${hoveredPlotState.beds} BHK` : hoveredPlotState.label || 'Apartment'}</span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
+            <span style={{ color: '#94a3b8' }}>Price:</span>
+            <span style={{ color: '#10b981' }}>
+              {formatPrice(hoveredPlotState.estimatedPrice || (hoveredPlotState.areaSqft * hoveredPlotState.pricePerSqft) || hoveredPlotState.price)}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
