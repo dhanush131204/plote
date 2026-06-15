@@ -108,16 +108,18 @@ export default function Leads() {
             background: 'var(--color-surface)', 
             borderRadius: '16px', 
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)', 
-            overflow: 'hidden', 
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
             border: '1px solid var(--color-border)'
           }}>
-            <table className="admin-table" style={{width: '100%', borderCollapse: 'collapse'}}>
+            <table className="admin-table" style={{width: '100%', minWidth: '1100px', borderCollapse: 'collapse'}}>
               <thead>
                 <tr style={{background: '#f8fafc', borderBottom: '2px solid #e2e8f0'}}>
                   <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Date</th>
                   <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Project</th>
                   <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Unit / Plot</th>
                   <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Contact Name</th>
+                  <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Message / Requirements</th>
                   <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Phone / Email</th>
                   <th style={{padding: '1.25rem 1.5rem', textAlign: 'left', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Status</th>
                   <th style={{padding: '1.25rem 1.5rem', textAlign: 'center', fontWeight: '700', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b'}}>Actions</th>
@@ -134,6 +136,18 @@ export default function Leads() {
                   else if (lStatus === 'pending') statusStyles = { bg: '#fffbeb', text: '#d97706', border: '#fde68a' };
                   else if (lStatus === 'rejected') statusStyles = { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' };
 
+                  let inquiryType = l.inquiryType || 'Booking';
+                  let leadMessage = l.message || '';
+                  try {
+                    if (!inquiryType || inquiryType === 'Booking') {
+                      const meta = l.metadata ? JSON.parse(l.metadata) : {};
+                      if (meta?.inquiryType) inquiryType = meta.inquiryType;
+                      if (!leadMessage && meta?.message) leadMessage = meta.message;
+                    }
+                  } catch (e) {
+                    // Ignore
+                  }
+
                   return (
                   <tr key={l.id} style={{
                     borderTop: '1px solid var(--color-border)', 
@@ -142,9 +156,54 @@ export default function Leads() {
                   }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                     <td style={{padding: '1.25rem 1.5rem', color: '#64748b', fontSize: '0.9rem'}}>{formatDate(l.createdAt)}</td>
                     <td style={{padding: '1.25rem 1.5rem', fontWeight: '700', color: '#1e293b', fontSize: '0.9rem'}}>{l.layoutName}</td>
-                    <td style={{padding: '1.25rem 1.5rem', color: '#334155', fontWeight: '500', fontSize: '0.9rem'}}>{l.unitId || l.plotId} {l.unitTower ? `(${l.unitTower})` : ''}</td>
+                    <td style={{padding: '1.25rem 1.5rem', color: '#334155', fontWeight: '500', fontSize: '0.9rem'}}>
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <span>{l.unitId || l.plotId} {l.unitTower ? `(${l.unitTower})` : ''}</span>
+                        {inquiryType.toLowerCase().includes('visit') ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '0.7rem',
+                            fontWeight: '700',
+                            background: '#eff6ff',
+                            color: '#1d4ed8',
+                            border: '1px solid #bfdbfe'
+                          }}>
+                            📅 site visit
+                          </span>
+                        ) : (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '0.7rem',
+                            fontWeight: '700',
+                            background: '#ecfdf5',
+                            color: '#047857',
+                            border: '1px solid #a7f3d0'
+                          }}>
+                            ⚡ booking
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td style={{padding: '1.25rem 1.5rem'}}>
                       <div style={{fontWeight: '700', color: '#1e293b', fontSize: '0.95rem'}}>{l.customerName}</div>
+                    </td>
+                    <td style={{padding: '1.25rem 1.5rem', maxWidth: '280px'}}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ color: '#1e293b', fontSize: '0.9rem', lineHeight: '1.4', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                          {leadMessage || '—'}
+                        </span>
+                        <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                          Type: {inquiryType || 'Booking'}
+                        </span>
+                      </div>
                     </td>
                     <td style={{padding: '1.25rem 1.5rem'}}>
                       <div style={{fontWeight: '600', color: '#334155', fontSize: '0.9rem'}}>{l.contactNumber}</div>

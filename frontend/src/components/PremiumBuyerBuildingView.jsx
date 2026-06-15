@@ -10,6 +10,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
   const [activeImageIdx, setActiveImageIdx] = useState(0)
   const [walkthroughOpen, setWalkthroughOpen] = useState(false)
   const [interestModalOpen, setInterestModalOpen] = useState(false)
+  const [isFloorDropdownOpen, setIsFloorDropdownOpen] = useState(false)
   
   // Lead submission states
   const [customerName, setCustomerName] = useState('')
@@ -59,7 +60,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
     }))
   }, [layout, selectedFloorId])
 
-  // Default mock media assets for room types if none are uploaded
+  // Extract media assets for room types. Only returns real uploaded data.
   const getRoomMedia = (unit) => {
     if (!unit) return { images: [], walkthroughUrl: '', rooms: [] }
     
@@ -80,21 +81,6 @@ export default function PremiumBuyerBuildingView({ layout }) {
         : `${apiBase}/uploads/${img}`
     )
 
-    // Sample high-quality room images matching luxury Scandinavian design
-    const defaultImages = [
-      'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=800&q=80', // Living room
-      'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80', // Kitchen
-      'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80', // Bedroom
-      'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&w=800&q=80'  // Bathroom
-    ]
-
-    const livingRoomPanorama = configImages[0] || layout?.phaseInfo?.panoramaLivingRoom || 'https://threejs.org/examples/textures/2294472375_b4a4940d4c_g.jpg'
-
-    const defaultRooms = [
-      { id: 'hall', name: 'Living Room', imagePath: livingRoomPanorama, hotspots: [{ targetRoomId: 'kitchen', x: '45%', y: '65%' }] },
-      { id: 'kitchen', name: 'Kitchen', imagePath: layout?.phaseInfo?.panoramaKitchen || 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=1200&q=80', hotspots: [{ targetRoomId: 'hall', x: '50%', y: '75%' }] }
-    ]
-
     const roomsMap = config?.rooms || {}
     const roomKeys = Object.keys(roomsMap).filter(k => !!roomsMap[k])
     
@@ -106,6 +92,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
         if (id === 'hall') return 'Living Room'
         if (id === 'kitchen') return 'Kitchen'
         if (id === 'bathroom') return 'Bathroom'
+        if (id === 'balcony') return 'Balcony'
         if (id.startsWith('bedroom')) {
           const num = id.replace('bedroom', '')
           return `Bedroom ${num}`
@@ -170,11 +157,12 @@ export default function PremiumBuyerBuildingView({ layout }) {
     }
 
     return {
-      images: unit.images || (roomImages.length > 0 ? roomImages : (configImages.length > 0 ? configImages : defaultImages)),
+      images: unit.images || (roomImages.length > 0 ? roomImages : (configImages.length > 0 ? configImages : [])),
       walkthroughUrl: unit.walkthroughUrl || '',
-      rooms: generatedRooms.length > 0 ? generatedRooms : defaultRooms
+      rooms: generatedRooms.length > 0 ? generatedRooms : []
     }
   }
+
 
   const selectedUnitMedia = useMemo(() => {
     return getRoomMedia(selectedUnit)
@@ -248,7 +236,8 @@ export default function PremiumBuyerBuildingView({ layout }) {
         plotId: selectedUnit.id,
         customerName: customerName.trim(),
         contactNumber: contactNumber.trim(),
-        customerEmail: customerEmail.trim()
+        customerEmail: customerEmail.trim(),
+        metadata: JSON.stringify({ inquiryType: 'Booking' })
       }).unwrap()
       setSubmitted(true)
       setInterestModalOpen(false)
@@ -263,11 +252,16 @@ export default function PremiumBuyerBuildingView({ layout }) {
 
   // Builder info details
   const phaseInfo = layout?.phaseInfo || {}
-  const builderName = phaseInfo.builderName || 'Luxury Developments Corp.'
-  const companyName = phaseInfo.companyName || 'Aurora Developments'
-  const builderPhone = phaseInfo.phone || phaseInfo.contactPhone || '+91 98765 43210'
-  const builderWhatsapp = phaseInfo.whatsapp || '+91 98765 43210'
-  const builderEmail = phaseInfo.email || 'sales@auroradevelopments.com'
+  const builderName = layout?.owner?.name || layout?.builderName || phaseInfo.builderName || 'Luxury Developments Corp.'
+  const companyName = layout?.owner?.companyName || layout?.companyName || phaseInfo.companyName || 'Aurora Developments'
+  const builderPhone = layout?.owner?.phone || phaseInfo.phone || phaseInfo.contactPhone || '+91 98765 43210'
+  const builderWhatsapp = layout?.owner?.phone 
+    ? layout.owner.phone.replace(/[^0-9]/g, '') 
+    : (phaseInfo.whatsapp || '919876543210')
+  const builderEmail = layout?.owner?.email || phaseInfo.email || 'sales@auroradevelopments.com'
+  const builderExperience = layout?.owner?.experience != null ? layout.owner.experience : null
+  const builderProjects = layout?.owner?.projectsDelivered != null ? layout.owner.projectsDelivered : null
+  const builderRera = layout?.owner?.rera || phaseInfo.rera || null
 
   const apiBase = import.meta.env.VITE_API_URL || ''
   const buildingBanner = layout?.imagePath 
@@ -341,7 +335,6 @@ export default function PremiumBuyerBuildingView({ layout }) {
         .premium-hero-banner {
           position: relative;
           border-radius: 24px;
-          overflow: hidden;
           background-size: cover;
           background-position: center;
           padding: 1rem 1.75rem;
@@ -351,6 +344,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
           align-items: center;
           min-height: 90px;
           transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          z-index: 20;
         }
         
         .premium-hero-banner:hover {
@@ -591,104 +585,6 @@ export default function PremiumBuyerBuildingView({ layout }) {
 
       {/* LEFT CONTENT VIEW - Hero Section and Interactive Plan */}
       <div className="premium-buyer-main">
-        {/* Premium Banner Hero Section */}
-        <div className="premium-hero-banner" style={{
-          backgroundImage: `linear-gradient(to right, rgba(15, 23, 42, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%), url(${buildingBanner})`,
-        }}>
-          {/* Transparent Glassmorphism Overlay */}
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(90deg, rgba(15, 23, 42, 0.35) 0%, rgba(15, 23, 42, 0.7) 100%)',
-            zIndex: 1
-          }} />
-          
-          <div style={{
-            position: 'relative',
-            zIndex: 2,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            width: '100%',
-            flexWrap: 'wrap',
-            gap: '1rem'
-          }}>
-            <div>
-              <span style={{
-                textTransform: 'uppercase',
-                fontSize: '0.65rem',
-                fontWeight: 700,
-                letterSpacing: '0.15em',
-                color: '#10b981',
-                display: 'block',
-                marginBottom: '2px',
-                textShadow: '0 1px 2px rgba(0,0,0,0.3)'
-              }}>
-                Luxury Living Experience
-              </span>
-              <h1 style={{
-                fontSize: '1.45rem',
-                fontWeight: 800,
-                margin: 0,
-                letterSpacing: '-0.01em',
-                textShadow: '0 2px 6px rgba(0,0,0,0.4)',
-                lineHeight: 1.15
-              }}>
-                {layout?.name || 'AURORA RESIDENCES'}
-              </h1>
-            </div>
-            
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              flexWrap: 'wrap'
-            }}>
-              {/* Floor picker dropdown styled luxury */}
-              <div className="luxury-select-wrapper" style={{ position: 'relative' }}>
-                <select 
-                  value={selectedFloorId} 
-                  onChange={(e) => {
-                    setSelectedFloorId(e.target.value)
-                    setSelectedUnit(null)
-                  }}
-                  className="luxury-select"
-                  style={{
-                    padding: '0.5rem 2.2rem 0.5rem 1.1rem',
-                    fontSize: '0.9rem'
-                  }}
-                >
-                  {sortedFloors.map(f => (
-                    <option key={f.id} value={f.id}>
-                      {f.label || `Floor ${(f.sortOrder ?? 0) + 1}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Building Statistics Chips */}
-              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div className="stat-chip-pill total" style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}>
-                  <span className="dot"></span>
-                  <span>{overallStats.total} Units</span>
-                </div>
-                <div className="stat-chip-pill available" style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}>
-                  <span className="dot"></span>
-                  <span>{overallStats.available} Available</span>
-                </div>
-                <div className="stat-chip-pill booked" style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}>
-                  <span className="dot"></span>
-                  <span>{overallStats.booked} Booked</span>
-                </div>
-                <div className="stat-chip-pill sold" style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}>
-                  <span className="dot"></span>
-                  <span>{overallStats.sold} Sold</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Floor Plan Card */}
         <div style={{
           background: '#ffffff',
@@ -709,40 +605,119 @@ export default function PremiumBuyerBuildingView({ layout }) {
             alignItems: 'center',
             padding: '1.25rem 1.5rem',
             borderBottom: '1px solid #f1f5f9',
-            background: '#fafafa',
+            background: '#ffffff',
             flexWrap: 'wrap',
-            gap: '0.75rem',
+            gap: '1rem',
             zIndex: 10
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>
-                Interactive Floor Map
-              </span>
-              <span style={{
-                fontSize: '0.75rem',
-                background: '#f1f5f9',
-                color: '#475569',
-                padding: '0.25rem 0.65rem',
-                borderRadius: '20px',
-                fontWeight: 700
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <h1 style={{
+                fontSize: '1.25rem',
+                fontWeight: 800,
+                margin: 0,
+                color: '#0f172a',
+                letterSpacing: '-0.01em',
               }}>
-                {currentFloor?.label || `Floor ${(currentFloor?.sortOrder ?? 0) + 1}`}
-              </span>
+                {layout?.name || 'Building Layout'}
+              </h1>
+              
+              <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
+              
+              {/* Floor picker dropdown styled luxury */}
+              <div className="luxury-select-wrapper" style={{ position: 'relative', zIndex: 9999 }}>
+                <div 
+                  className="luxury-select" 
+                  style={{ 
+                    padding: '0.5rem 2rem 0.5rem 1rem', 
+                    fontSize: '0.85rem', 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    minWidth: '120px',
+                    userSelect: 'none',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    color: '#334155',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setIsFloorDropdownOpen(!isFloorDropdownOpen)}
+                >
+                  {currentFloor?.label || `Floor ${(currentFloor?.sortOrder ?? 0) + 1}`}
+                  <svg style={{ position: 'absolute', right: '0.75rem' }} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+                
+                {isFloorDropdownOpen && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: '0.5rem',
+                    width: '100%',
+                    minWidth: '150px',
+                    background: '#ffffff',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                    overflowY: 'auto',
+                    maxHeight: '250px',
+                    zIndex: 99999,
+                    border: '1px solid #e2e8f0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '0.5rem 0'
+                  }}>
+                    {sortedFloors.map(f => (
+                      <button
+                        key={f.id}
+                        onClick={() => {
+                          setSelectedFloorId(f.id)
+                          setSelectedUnit(null)
+                          setIsFloorDropdownOpen(false)
+                        }}
+                        style={{
+                          padding: '0.75rem 1.25rem',
+                          background: selectedFloorId === f.id ? '#f8fafc' : 'transparent',
+                          border: 'none',
+                          textAlign: 'left',
+                          width: '100%',
+                          cursor: 'pointer',
+                          color: selectedFloorId === f.id ? '#10b981' : '#334155',
+                          fontWeight: selectedFloorId === f.id ? '700' : '500',
+                          fontSize: '0.9rem',
+                          transition: 'background 0.2s ease',
+                          outline: 'none'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (selectedFloorId !== f.id) e.target.style.background = '#f1f5f9'
+                        }}
+                        onMouseLeave={(e) => {
+                          if (selectedFloorId !== f.id) e.target.style.background = 'transparent'
+                        }}
+                      >
+                        {f.label || `Floor ${(f.sortOrder ?? 0) + 1}`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             
-            {/* Unit status legend for floor plan */}
-            <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.825rem', fontWeight: 600, color: '#475569' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} />
-                <span>Available ({floorStats.available})</span>
+            {/* Building Statistics Chips */}
+            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
+                <span>{overallStats.total} Units</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.825rem', fontWeight: 600, color: '#475569' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} />
-                <span>Booked ({floorStats.booked})</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#047857', background: '#ecfdf5', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #a7f3d0' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
+                <span>{overallStats.available} Available</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.825rem', fontWeight: 600, color: '#475569' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }} />
-                <span>Sold ({floorStats.sold})</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#b45309', background: '#fffbeb', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #fde68a' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b' }} />
+                <span>{overallStats.booked} Booked</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c', background: '#fef2f2', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #fecaca' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }} />
+                <span>{overallStats.sold} Sold</span>
               </div>
             </div>
           </div>
@@ -865,7 +840,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
             </div>
 
             {/* Carousel gallery images */}
-            {selectedUnitMedia.images.length > 0 && (
+            {selectedUnitMedia.images && selectedUnitMedia.images.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Residence Tour Gallery
@@ -882,7 +857,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
                   boxShadow: '0 4px 12px rgba(15, 23, 42, 0.02)'
                 }}>
                   <img 
-                    src={selectedUnitMedia.images[activeImageIdx]} 
+                    src={selectedUnitMedia.images[activeImageIdx] || selectedUnitMedia.images[0]} 
                     alt="Residence Preview" 
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
@@ -897,7 +872,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
                     fontSize: '0.8rem',
                     fontWeight: 600
                   }}>
-                    Image {activeImageIdx + 1} of {selectedUnitMedia.images.length}
+                    Image {(activeImageIdx % selectedUnitMedia.images.length) + 1} of {selectedUnitMedia.images.length}
                   </div>
                 </div>
                 
@@ -925,36 +900,91 @@ export default function PremiumBuyerBuildingView({ layout }) {
                   ))}
                 </div>
               </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Residence Tour Gallery
+                </span>
+                <div style={{
+                  width: '100%',
+                  height: '210px',
+                  borderRadius: '16px',
+                  border: '2px dashed #cbd5e1',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  backgroundColor: '#f8fafc',
+                  color: '#64748b',
+                  textAlign: 'center',
+                  padding: '1.5rem'
+                }}>
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '0.5rem' }}>
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>
+                  <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.25rem', color: '#475569' }}>No Image Uploaded</div>
+                  <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Builder has not uploaded room images yet.</div>
+                </div>
+              </div>
             )}
 
             {/* Premium 3D Walkthrough CTA */}
-            <button
-              onClick={() => setWalkthroughOpen(true)}
-              className="premium-3d-button"
-              style={{
-                width: '100%',
-                padding: '1.05rem',
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '14px',
-                fontWeight: 700,
-                fontSize: '0.95rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.6rem',
-                boxShadow: '0 6px 18px rgba(16, 185, 129, 0.22)',
-                transition: 'all 0.25s ease',
-                letterSpacing: '0.01em'
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform 0.3s ease' }}>
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-              </svg>
-              EXPLORE 3D WALKTHROUGH
-            </button>
+            {selectedUnitMedia.rooms && selectedUnitMedia.rooms.length > 0 ? (
+              <button
+                onClick={() => setWalkthroughOpen(true)}
+                className="premium-3d-button"
+                style={{
+                  width: '100%',
+                  padding: '1.05rem',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '14px',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.6rem',
+                  boxShadow: '0 6px 18px rgba(16, 185, 129, 0.22)',
+                  transition: 'all 0.25s ease',
+                  letterSpacing: '0.01em'
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform 0.3s ease' }}>
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                EXPLORE 3D WALKTHROUGH
+              </button>
+            ) : (
+              <button
+                disabled
+                style={{
+                  width: '100%',
+                  padding: '1.05rem',
+                  background: '#f1f5f9',
+                  color: '#94a3b8',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '14px',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  cursor: 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.6rem',
+                  letterSpacing: '0.01em'
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+                </svg>
+                360° VIEW NOT AVAILABLE
+              </button>
+            )}
 
             {/* Builder profile details */}
             <div style={{
@@ -968,21 +998,36 @@ export default function PremiumBuyerBuildingView({ layout }) {
               marginTop: 'auto'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  background: '#ecfdf5',
-                  color: '#10b981',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.25rem',
-                  fontWeight: 800,
-                  border: '1px solid #a7f3d0'
-                }}>
-                  {builderName.charAt(0)}
-                </div>
+                {layout?.owner?.logoPath ? (
+                  <img
+                    src={`${apiBase}/uploads/${layout.owner.logoPath}`}
+                    alt="Builder Logo"
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '12px',
+                      objectFit: 'contain',
+                      border: '1px solid #e2e8f0',
+                      background: '#ffffff'
+                    }}
+                  />
+                ) : (
+                  <div style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
+                    background: '#ecfdf5',
+                    color: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.25rem',
+                    fontWeight: 800,
+                    border: '1px solid #a7f3d0'
+                  }}>
+                    {builderName.charAt(0)}
+                  </div>
+                )}
                 <div>
                   <h4 style={{ margin: 0, fontSize: '0.925rem', fontWeight: 800, color: '#0f172a' }}>
                     {builderName}
@@ -992,6 +1037,28 @@ export default function PremiumBuyerBuildingView({ layout }) {
                   </p>
                 </div>
               </div>
+
+              {(builderExperience != null || builderProjects != null) && (
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '0.75rem' }}>
+                  {builderExperience != null && (
+                    <div>
+                      <span style={{ color: '#94a3b8', display: 'block', fontWeight: 600 }}>Experience</span>
+                      <span style={{ fontWeight: 700, color: '#475569' }}>{builderExperience} Years</span>
+                    </div>
+                  )}
+                  {builderProjects != null && (
+                    <div>
+                      <span style={{ color: '#94a3b8', display: 'block', fontWeight: 600 }}>Projects</span>
+                      <span style={{ fontWeight: 700, color: '#475569' }}>{builderProjects} Delivered</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {builderRera && (
+                <div style={{ fontSize: '0.7rem', color: '#64748b', background: '#ffffff', padding: '6px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                  RERA: <span style={{ fontWeight: 700, color: '#334155' }}>{builderRera}</span>
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
                 <a 
@@ -1043,28 +1110,47 @@ export default function PremiumBuyerBuildingView({ layout }) {
                 </a>
               </div>
 
-              <button
-                onClick={() => setInterestModalOpen(true)}
-                className="builder-btn-interest"
-                style={{
-                  padding: '0.7rem',
-                  border: '1px solid #10b981',
+              {selectedUnit?.status === 'Sold' || selectedUnit?.status === 'Booked' ? (
+                <div style={{
+                  padding: '0.8rem',
+                  border: `1px solid ${selectedUnit.status === 'Sold' ? '#fecaca' : '#fde68a'}`,
                   borderRadius: '10px',
-                  background: '#ecfdf5',
-                  color: '#059669',
+                  background: selectedUnit.status === 'Sold' ? '#fef2f2' : '#fffbeb',
+                  color: selectedUnit.status === 'Sold' ? '#ef4444' : '#d97706',
                   fontWeight: 700,
                   fontSize: '0.825rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
+                  textAlign: 'center',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.4rem'
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                Book / Call Back Request
-              </button>
+                }}>
+                  🔒 This unit is {selectedUnit.status}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setInterestModalOpen(true)}
+                  className="builder-btn-interest"
+                  style={{
+                    padding: '0.7rem',
+                    border: '1px solid #10b981',
+                    borderRadius: '10px',
+                    background: '#ecfdf5',
+                    color: '#059669',
+                    fontWeight: 700,
+                    fontSize: '0.825rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                  Book / Call Back Request
+                </button>
+              )}
             </div>
 
           </div>
@@ -1155,21 +1241,36 @@ export default function PremiumBuyerBuildingView({ layout }) {
               marginTop: 'auto'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  background: '#ecfdf5',
-                  color: '#10b981',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.25rem',
-                  fontWeight: 800,
-                  border: '1px solid #a7f3d0'
-                }}>
-                  {builderName.charAt(0)}
-                </div>
+                {layout?.owner?.logoPath ? (
+                  <img
+                    src={`${apiBase}/uploads/${layout.owner.logoPath}`}
+                    alt="Builder Logo"
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '12px',
+                      objectFit: 'contain',
+                      border: '1px solid #e2e8f0',
+                      background: '#ffffff'
+                    }}
+                  />
+                ) : (
+                  <div style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
+                    background: '#ecfdf5',
+                    color: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.25rem',
+                    fontWeight: 800,
+                    border: '1px solid #a7f3d0'
+                  }}>
+                    {builderName.charAt(0)}
+                  </div>
+                )}
                 <div>
                   <h4 style={{ margin: 0, fontSize: '0.925rem', fontWeight: 800, color: '#0f172a' }}>
                     {builderName}
@@ -1179,6 +1280,28 @@ export default function PremiumBuyerBuildingView({ layout }) {
                   </p>
                 </div>
               </div>
+
+              {(builderExperience != null || builderProjects != null) && (
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '0.75rem' }}>
+                  {builderExperience != null && (
+                    <div>
+                      <span style={{ color: '#94a3b8', display: 'block', fontWeight: 600 }}>Experience</span>
+                      <span style={{ fontWeight: 700, color: '#475569' }}>{builderExperience} Years</span>
+                    </div>
+                  )}
+                  {builderProjects != null && (
+                    <div>
+                      <span style={{ color: '#94a3b8', display: 'block', fontWeight: 600 }}>Projects</span>
+                      <span style={{ fontWeight: 700, color: '#475569' }}>{builderProjects} Delivered</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {builderRera && (
+                <div style={{ fontSize: '0.7rem', color: '#64748b', background: '#ffffff', padding: '6px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                  RERA: <span style={{ fontWeight: 700, color: '#334155' }}>{builderRera}</span>
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
                 <a href={`https://wa.me/${builderWhatsapp}`} target="_blank" rel="noreferrer" className="builder-btn-wa" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.55rem 0.5rem', borderRadius: '10px', background: '#25D366', color: '#ffffff', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none', boxShadow: '0 2px 4px rgba(37, 211, 102, 0.12)', transition: 'all 0.2s ease' }}>

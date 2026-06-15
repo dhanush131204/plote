@@ -14,20 +14,39 @@ export default function ImagePlotMapView({
   onCalibratePlotNumChange,
   emptyMessage = 'No plots. Add plots in the builder.',
   detailsSlot,
-  /** 'left' | 'right' — public view uses left sidebar */
   detailsSide = 'right',
-  /** Custom width for the details panel */
   detailsWidth,
-  /** Rendered above the map (outside zoom), e.g. floor stack + 3D preview */
   beforeMapSlot = null,
   zoomPanEnabled = false,
   resetZoomTrigger = 0,
   zoomInTrigger = 0,
   zoomOutTrigger = 0,
+  storageKey,
+  onHoverPlot,
 }) {
   const hasPlots = plots && plots.length > 0
   const [imageAspectRatio, setImageAspectRatio] = useState(16 / 10)
   const [calibPoints, setCalibPoints] = useState([])
+
+  let initialScale = 1
+  let initialPositionX = 0
+  let initialPositionY = 0
+  const hasSavedState = !!(storageKey && sessionStorage.getItem(storageKey))
+  if (hasSavedState) {
+    try {
+      const parsed = JSON.parse(sessionStorage.getItem(storageKey))
+      initialScale = parsed.scale ?? 1
+      initialPositionX = parsed.positionX ?? 0
+      initialPositionY = parsed.positionY ?? 0
+    } catch (e) {}
+  }
+
+  const handleTransform = (ref) => {
+    if (!storageKey) return
+    const { scale, positionX, positionY } = ref.state
+    const data = JSON.stringify({ scale, positionX, positionY })
+    sessionStorage.setItem(storageKey, data)
+  }
 
   // Resizable sidebar state
   const initialWidth = parseInt(detailsWidth) || 400
@@ -82,14 +101,13 @@ export default function ImagePlotMapView({
     const x = Number((((e.clientX - rect.left) / rect.width) * 100).toFixed(2))
     const y = Number((((e.clientY - rect.top) / rect.height) * 100).toFixed(2))
     const pt = [x, y]
-    setCalibPoints((prev) => {
-      const next = [...prev, pt]
-      if (next.length === 4) {
-        onCalibrateComplete(calibratePlotNum, next)
-        return []
-      }
-      return next
-    })
+    const next = [...calibPoints, pt]
+    if (next.length === 4) {
+      setCalibPoints([])
+      onCalibrateComplete?.(calibratePlotNum, next)
+    } else {
+      setCalibPoints(next)
+    }
   }
 
   const getPlotOverlay = (plot) => {
@@ -171,6 +189,8 @@ export default function ImagePlotMapView({
                   className={`image-plot-overlay-shape status-${(plot.status || 'available').toLowerCase()} ${isSelected ? 'selected' : ''}`}
                   points={pts}
                   onClick={() => onSelectPlot?.(plot)}
+                  onMouseEnter={(e) => onHoverPlot?.(plot, e)}
+                  onMouseLeave={() => onHoverPlot?.(null)}
                 />
               )
             }
@@ -187,6 +207,8 @@ export default function ImagePlotMapView({
                 height={height}
                 transform={rotation ? `rotate(${rotation} ${cx} ${cy})` : ''}
                 onClick={() => onSelectPlot?.(plot)}
+                onMouseEnter={(e) => onHoverPlot?.(plot, e)}
+                onMouseLeave={() => onHoverPlot?.(null)}
               />
             )
           })}
@@ -265,11 +287,15 @@ export default function ImagePlotMapView({
     useZoomLayout ? (
       <div className="image-plot-map-zoom-shell" style={{ width: '100%', height: '100%', display: 'flex' }}>
         <TransformWrapper
-          initialScale={1}
+          key={storageKey || 'map-zoom'}
+          initialScale={initialScale}
+          initialPositionX={initialPositionX}
+          initialPositionY={initialPositionY}
           minScale={0.5}
           maxScale={3}
           limitToBounds={false}
-          centerOnInit
+          centerOnInit={!hasSavedState}
+          onTransformed={handleTransform}
           wheel={{ step: 0.12 }}
           panning={{ disabled: false, wheelPanning: true }}
           doubleClick={{ disabled: false, mode: 'reset' }}

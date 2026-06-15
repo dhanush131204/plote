@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGetLayoutsQuery, useDeleteLayoutMutation, useUpdateLayoutMutation } from '../api/apiSlice';
+import toast from 'react-hot-toast';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -74,30 +75,27 @@ export default function Layouts() {
               gap: '0.75rem',
               flexWrap: 'wrap'
             }}>
-              {/* Toggle Button */}
-              <button
-                type="button"
-                onClick={() => setIsSearchExpanded(!isSearchExpanded)}
-                style={{
-                  background: '#fff',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '8px',
-                  width: '2.5rem',
-                  height: '2.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: 'var(--color-text-muted)',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                  transition: 'all 0.2s',
-                  outline: 'none',
-                  flexShrink: 0
-                }}
-                title="Toggle Search"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-              </button>
+              {/* Always visible Search Input Box */}
+              <div style={{ width: '220px', display: 'flex', alignItems: 'center', position: 'relative' }}>
+                <svg style={{ position: 'absolute', left: '10px', color: '#94a3b8', pointerEvents: 'none' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input
+                  type="text"
+                  placeholder="Search projects..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.85rem 0.55rem 2.2rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--color-border)',
+                    outline: 'none',
+                    background: '#fff',
+                    color: 'var(--color-text)',
+                    fontSize: '0.9rem',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                  }}
+                />
+              </div>
 
               {/* Type Filter */}
               <div style={{ minWidth: '130px' }}>
@@ -146,30 +144,6 @@ export default function Layouts() {
                   <option value="draft">Draft</option>
                 </select>
               </div>
-
-              {/* Search Input Box */}
-              {isSearchExpanded && (
-                <div style={{ width: '220px', display: 'flex', alignItems: 'center', animation: 'fadeInWidth 0.25s ease-out' }}>
-                  <input
-                    type="text"
-                    placeholder="Search projects..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    autoFocus
-                    style={{
-                      width: '100%',
-                      padding: '0.55rem 0.85rem',
-                      borderRadius: '8px',
-                      border: '1px solid var(--color-border)',
-                      outline: 'none',
-                      background: '#fff',
-                      color: 'var(--color-text)',
-                      fontSize: '0.9rem',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-                    }}
-                  />
-                </div>
-              )}
             </div>
           )}
 
@@ -202,15 +176,8 @@ export default function Layouts() {
               const isBuilding = layout.layoutKind === 'building';
               const plots = layout.plots || [];
               
-              // Calculate statistics dynamically
-              // For buildings: count configurations across all floors
-              // For plots: count plots as before
-              const totalPlots = isBuilding
-                ? (layout.floors || []).reduce((acc, f) => acc + (f.configurations?.length || 0), 0)
-                : (layout.totalPlots ?? plots.length);
-              const availablePlots = isBuilding
-                ? (layout.floors || []).reduce((acc, f) => acc + (f.configurations?.length || 0), 0)
-                : (layout.availablePlots ?? plots.filter(p => p.status?.toLowerCase() === "available").length);
+              const totalPlots = layout.totalPlots ?? plots.length;
+              const availablePlots = layout.availablePlots ?? plots.filter(p => p.status?.toLowerCase() === "available").length;
 
               return (
                 <div key={layout.id} className="project-card-premium">
@@ -254,6 +221,20 @@ export default function Layouts() {
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                         View
                       </button>
+                      {layout.status === 'published' && (
+                        <button 
+                          className="pca-btn" 
+                          onClick={() => {
+                            const url = `${window.location.origin}/v/${layout.slug}`;
+                            navigator.clipboard.writeText(url);
+                            toast.success('Sharing link copied!');
+                          }}
+                          title="Copy sharing link"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                          Share
+                        </button>
+                      )}
                       <button 
                         className={`pca-btn ${layout.status === 'published' ? 'pca-btn--unpublish' : 'pca-btn--publish'}`}
                         onClick={async () => {

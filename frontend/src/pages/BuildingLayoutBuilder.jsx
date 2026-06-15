@@ -26,7 +26,7 @@ import toast from 'react-hot-toast'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
-const STEPS = ['Upload', 'Calibrate', 'Floor plan', 'Settings']
+const STEPS = ['Building Name', 'Building Image', 'Floor Plans & Units', 'Settings & Publish']
 
 export default function BuildingLayoutBuilder() {
   const { id } = useParams()
@@ -258,7 +258,6 @@ export default function BuildingLayoutBuilder() {
   const uploadApartmentMedia = async (floorId, configId, kind, file, roomId = null) => {
     if (!file) return
     setError('')
-    setUploadSuccess('')
     setUploadingMedia({ configId, kind, roomId })
     try {
       // Save current layout state first so that the floor/config exists in the database
@@ -378,7 +377,6 @@ export default function BuildingLayoutBuilder() {
     const file = e.target.files?.[0]
     if (!file || !selectedFloorId) return
     setError('')
-    setUploadSuccess('')
     setUploadingMedia({ configId: 'floor-plan', kind: 'image' })
     try {
       // Save current layout state first so that the floor exists in the database
@@ -446,6 +444,9 @@ export default function BuildingLayoutBuilder() {
           estimatedPrice: 0,
         },
       ])
+      toast.success(`Unit ${plotNum} created successfully!`)
+    } else {
+      toast.success(`Unit ${plotNum} updated successfully!`)
     }
     const nextExpected = Number(plotNum) + 1
     setUnitGuideMessage(`Unit ${plotNum} calibrated successfully! You can now adjust its details (facing, price) in the sidebar list below, or click "+ Add Unit" to add Unit ${nextExpected}.`)
@@ -515,7 +516,7 @@ export default function BuildingLayoutBuilder() {
         }
         return { ...norm, byFloor: { ...norm.byFloor, [fid]: layer } }
       })
-      if (calibratePlotNum === oldNumber) setCalibratePlotNum(newNumber)
+      if (String(calibratePlotNum) === String(oldNumber)) setCalibratePlotNum(newNumber)
     }
   }
 
@@ -528,7 +529,7 @@ export default function BuildingLayoutBuilder() {
       delete layer[plot.number]
       return { ...norm, byFloor: { ...norm.byFloor, [fid]: layer } }
     })
-    if (calibratePlotNum === plot.number) {
+    if (String(calibratePlotNum) === String(plot.number)) {
       const remaining = plots.filter((p) => p.id !== plot.id && p.number !== plot.number)
       setCalibratePlotNum(remaining[0]?.number ?? 101)
     }
@@ -548,6 +549,7 @@ export default function BuildingLayoutBuilder() {
         phaseInfo,
         webhookUrl: webhookUrl || null,
       }).unwrap()
+      toast.success(`Building "${name || 'Untitled'}" saved successfully!`)
       navigate('/dashboard')
     } catch (err) {
       setError(err.data?.error || err.message || 'Save failed')
@@ -559,52 +561,55 @@ export default function BuildingLayoutBuilder() {
   return (
     <div className="builder-workspace">
       <header className="header">
-        {/* <button type="button" onClick={() => navigate('/dashboard')} className="btn-secondary">
-          ← Dashboard
-        </button> */}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <h2 className="header-title" style={{ margin: 0 }}>Apartment / building layout</h2>
           {name && (
             <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem', fontWeight: 500 }}>
-              Building Name: <span style={{ color: '#1e293b', fontWeight: 600 }}>{name}</span>
+              Building Name: <span style={{ color: '#0d9488', fontWeight: 700 }}>{name}</span>
             </div>
           )}
         </div>
-        <nav className="header-actions builder-steps" aria-label="Builder steps">
-          {STEPS.map((s, i) => (
-            <button
-              key={s}
-              type="button"
-              className={step === i ? 'btn-primary' : 'btn-secondary'}
-              style={i > 0 && !building.facadeImagePath ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-              onClick={() => {
-                if (i > 0 && !building.facadeImagePath) {
-                  return
-                }
-                setStep(i)
-              }}
-            >
-              {i + 1}. {s}
-            </button>
-          ))}
+        <nav className="header-actions builder-steps" aria-label="Builder steps" style={{ display: 'flex', gap: '0.5rem' }}>
+          {STEPS.map((s, i) => {
+            const isClickable = i === 0 || 
+              (i === 1 && name.trim()) || 
+              (i === 2 && building.facadeImagePath) || 
+              (i === 3 && building.floors?.length > 0)
+            return (
+              <button
+                key={s}
+                type="button"
+                className={step === i ? 'btn-primary' : 'btn-secondary'}
+                style={!isClickable ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                onClick={() => {
+                  if (isClickable) setStep(i)
+                }}
+              >
+                {i + 1}. {s}
+              </button>
+            )
+          })}
         </nav>
       </header>
       <main className="builder-main">
         {error && <div className="dashboard-error">{error}</div>}
 
         {step === 0 && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', overflowY: 'auto', background: 'var(--color-bg)' }}>
-            <div className="premium-wizard-card" style={{ margin: 0 }}>
-              <h3>Upload facade image</h3>
-              <p>Upload your building facade image. Once uploaded, you'll calibrate floor bands and add configuration details.</p>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', background: 'var(--color-bg)' }}>
+            <div className="premium-wizard-card" style={{ margin: 0, width: '100%', maxWidth: '500px', padding: '2rem', borderRadius: '16px', background: '#fff', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-md)' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 0.5rem 0' }}>Step 1: Building Details</h3>
+              <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Give your high-rise building project a name and unique web path.</p>
               
-              <div style={{ marginBottom: '1.5rem', textAlign: 'left' }}>
-                <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Building Name</label>
+              <div style={{ marginBottom: '1.25rem', textAlign: 'left' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>Building Name</label>
                 <input 
                   type="text" 
                   value={name} 
-                  onChange={(e) => setName(e.target.value)} 
-                  placeholder="e.g. Tower A"
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    setSlug(e.target.value?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))
+                  }} 
+                  placeholder="e.g. Prestige Heights"
                   style={{ 
                     width: '100%', 
                     padding: '0.75rem', 
@@ -618,629 +623,591 @@ export default function BuildingLayoutBuilder() {
                 />
               </div>
 
-              {!building.facadeImagePath ? (
-                <label className="builder-upload-dashed">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 0.75rem', display: 'block', color: 'var(--color-text-muted)' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  <input type="file" accept="image/*" onChange={handleFacadeUpload} />
-                  Choose facade image
-                </label>
-              ) : (
-                <div>
-                  <p style={{ marginTop: '1rem' }}>Facade uploaded. Replace image or continue to calibrate.</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <button type="button" onClick={() => setStep(1)} className="btn-primary" style={{ width: '100%', padding: '0.875rem' }}>
-                      Next: Calibrate
-                    </button>
-                    <label className="builder-upload-dashed" style={{ padding: '1.5rem' }}>
-                      <input type="file" accept="image/*" onChange={handleFacadeUpload} />
-                      Replace facade image
-                    </label>
-                  </div>
-                </div>
-              )}
+              <button 
+                type="button" 
+                onClick={() => setStep(1)} 
+                className="btn-primary" 
+                style={{ width: '100%', padding: '0.85rem', borderRadius: '8px', fontWeight: 700 }}
+                disabled={!name.trim()}
+              >
+                Next: Upload Building Image
+              </button>
             </div>
           </div>
         )}
 
         {step === 1 && (
-          <div className="builder-step builder-step--calibrate" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div className="builder-calibrate-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '1rem 2rem', borderBottom: '1px solid var(--color-border)' }}>
+          <div className="builder-step builder-step--calibrate" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f8fafc' }}>
+            <div className="builder-calibrate-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
               <div>
-                <h3 style={{ margin: 0, fontWeight: 700, fontSize: '1.25rem', color: '#1e293b' }}>Calibrate floors</h3>
-                <p style={{ margin: '0.25rem 0 0', color: '#64748b', fontSize: '0.875rem' }}>Add floors and mark each floor band on the facade (4 corners per floor).</p>
+                <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.15rem', color: '#1e293b' }}>Step 2: Building Image & Floor Bands</h3>
+                <p style={{ margin: '0.15rem 0 0', color: '#64748b', fontSize: '0.8rem' }}>Upload your building picture and mark where each floor sits on it.</p>
               </div>
-              <button type="button" onClick={handleAddFloor} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem', borderRadius: '8px' }}>
-                <span style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>+</span> Add floor
-              </button>
+              {building.facadeImagePath && (
+                <button type="button" onClick={handleAddFloor} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 1rem', borderRadius: '6px', fontSize: '0.85rem' }}>
+                  <strong>+</strong> Add floor
+                </button>
+              )}
             </div>
-            <div className="builder-calibrate-content">
-              {facadeImageSrc ? (
-                building.floors?.length > 0 ? (
-                  <ImagePlotMapView
-                    imageSrc={facadeImageSrc}
-                    overlayConfig={facadeOverlayFlat}
-                    plots={facadePlots}
-                    selectedPlot={facadePlots.find((p) => p.id === facadeCalibrateKey) || null}
-                    onSelectPlot={() => {}}
-                    calibrateMode
-                    onCalibrateComplete={handleFacadeCalibrateComplete}
-                    calibratePlotNum={facadeCalibrateKey}
-                    onCalibratePlotNumChange={setFacadeCalibrateKey}
-                    detailsSlot={({ calibPoints = [] }) => (
-                      <CalibratePlotSidebar
-                        plots={facadePlots}
+            
+            <div className="builder-calibrate-content" style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+              {!building.facadeImagePath ? (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, padding: '2rem' }}>
+                  <div className="premium-wizard-card" style={{ maxWidth: '460px', width: '100%', margin: 0, padding: '2rem', background: '#fff', borderRadius: '12px', border: '1px solid var(--color-border)', textAlign: 'center' }}>
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 1rem' }}><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="16"></line><line x1="15" y1="22" x2="15" y2="16"></line></svg>
+                    <h4 style={{ margin: '0 0 0.5rem', fontWeight: 700, color: 'var(--color-text)' }}>Upload facade image</h4>
+                    <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1.5rem', lineHeight: 1.5 }}>Choose a high-quality vertical building render/photo. Buyers will click this to select floors.</p>
+                    <label className="builder-upload-dashed" style={{ padding: '2rem' }}>
+                      <input type="file" accept="image/*" onChange={handleFacadeUpload} />
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginBottom: '0.5rem' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      Choose facade image file
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                  <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+                    {building.floors?.length > 0 ? (
+                      <ImagePlotMapView
+                        imageSrc={facadeImageSrc}
                         overlayConfig={facadeOverlayFlat}
+                        plots={facadePlots}
+                        selectedPlot={facadePlots.find((p) => p.id === facadeCalibrateKey) || null}
+                        onSelectPlot={() => {}}
+                        calibrateMode
+                        onCalibrateComplete={handleFacadeCalibrateComplete}
                         calibratePlotNum={facadeCalibrateKey}
                         onCalibratePlotNumChange={setFacadeCalibrateKey}
-                        onUpdatePlot={() => {}}
-                        onEditPlot={(plot) => {
-                          const floor = building.floors.find((f) => f.id === plot.id)
-                          if (floor) setEditFloor(floor)
-                        }}
-                        onDeletePlot={handleDeleteFacadeFloor}
-                        calibPoints={calibPoints}
-                        title="Facade floors"
-                        emptyHint="Select a floor band and click 4 corners on the facade."
+                        detailsWidth="320px"
+                        storageKey={`building-facade-${id}`}
+                        detailsSlot={({ calibPoints = [] }) => (
+                          <CalibratePlotSidebar
+                            plots={facadePlots}
+                            overlayConfig={facadeOverlayFlat}
+                            calibratePlotNum={facadeCalibrateKey}
+                            onCalibratePlotNumChange={setFacadeCalibrateKey}
+                            onUpdatePlot={() => {}}
+                            onEditPlot={(plot) => {
+                              const floor = building.floors.find((f) => f.id === plot.id)
+                              if (floor) setEditFloor(floor)
+                            }}
+                            onDeletePlot={handleDeleteFacadeFloor}
+                            calibPoints={calibPoints}
+                            title="Facade floors"
+                            emptyHint="Add a floor with '+ Add floor', select it, and mark its 4 corners on the building facade image."
+                          />
+                        )}
                       />
+                    ) : (
+                      <div style={{ padding: '3rem 1.5rem', border: '2px dashed #cbd5e1', borderRadius: '12px', textAlign: 'center', color: '#64748b', background: '#fff', maxWidth: '400px', margin: '4rem auto' }}>
+                        <p style={{ fontWeight: 600, fontSize: '0.9rem', margin: '0 0 1rem' }}>No floors added yet. Click "+ Add floor" to configure floor bands.</p>
+                        <button type="button" onClick={handleAddFloor} className="btn-primary" style={{ padding: '0.5rem 1rem', borderRadius: '6px' }}>+ Add floor</button>
+                      </div>
                     )}
-                  />
-                ) : (
-                  <div className="building-no-floor-image" style={{
-                    padding: '4rem 2rem',
-                    border: '2px dashed #cbd5e1',
-                    borderRadius: '16px',
-                    color: '#64748b',
-                    background: '#f8fafc',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                    maxWidth: '480px',
-                    margin: '6rem auto',
-                    gap: '1rem',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.01)'
-                  }}>
-                    <div style={{ fontSize: '3rem' }}>🏢</div>
-                    <h4 style={{ margin: '0.5rem 0 0', fontWeight: '700', color: '#1e293b', fontSize: '1.15rem' }}>No Floors Configured</h4>
-                    <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem', lineHeight: '1.5', maxWidth: '340px' }}>
-                      Add a floor using the <strong>"+ Add floor"</strong> button above, select it, and mark its 4 corners on the facade image.
-                    </p>
                   </div>
-                )
-              ) : (
-                <div className="building-no-floor-image" style={{
-                  padding: '4rem 2rem',
-                  border: '2px dashed #cbd5e1',
-                  borderRadius: '16px',
-                  color: '#64748b',
-                  background: '#f8fafc',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                  maxWidth: '480px',
-                  margin: '6rem auto',
-                  gap: '1rem',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.01)'
-                }}>
-                  <div style={{ fontSize: '3rem' }}>📤</div>
-                  <h4 style={{ margin: '0.5rem 0 0', fontWeight: '700', color: '#1e293b', fontSize: '1.15rem' }}>Facade Image Required</h4>
-                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem', lineHeight: '1.5', maxWidth: '340px' }}>
-                    Please go back to the <strong>"1. Upload"</strong> step and choose a building facade image first.
-                  </p>
+                  <div style={{ background: '#fff', borderTop: '1px solid #e2e8f0', padding: '0.5rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                    <label style={{ cursor: 'pointer', fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <input type="file" accept="image/*" onChange={handleFacadeUpload} style={{ display: 'none' }} />
+                      🔄 Replace facade image
+                    </label>
+                  </div>
                 </div>
               )}
             </div>
-            <div style={{ padding: '0.5rem 1.5rem', background: '#fff', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+            
+            <div style={{ padding: '0.75rem 1.5rem', background: '#fff', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', flexShrink: 0 }}>
+              <button type="button" onClick={() => setStep(0)} className="btn-secondary" style={{ padding: '0.5rem 1.25rem', borderRadius: '8px' }}>
+                Back
+              </button>
               <button
                 type="button"
                 onClick={() => setStep(2)}
                 className="btn-primary"
-                style={{ padding: '0.5rem 1.25rem', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem' }}
-                disabled={!building.floors?.length}
+                style={{ padding: '0.5rem 1.25rem', borderRadius: '8px', fontWeight: 600 }}
+                disabled={!building.facadeImagePath || !building.floors?.length}
               >
-                Next: Floor plan
+                Next: Floor plan & Units
               </button>
             </div>
           </div>
         )}
 
         {step === 2 && (
-          <div className="builder-step builder-step--floor-plan" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div className="building-floor-plan-layout" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '1.5rem', padding: '1.5rem', alignItems: 'stretch', background: 'var(--color-bg-wash)', overflow: 'hidden' }}>
-              <div className="building-floor-plan-main" style={{ flex: 1, minHeight: 0, overflowY: 'auto', background: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid var(--color-border)' }}>
+          <div className="builder-step builder-step--floor-plan" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f8fafc' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569' }}>Select Floor:</span>
+                <select 
+                  value={selectedFloorId || ''} 
+                  onChange={(e) => setSelectedFloorId(e.target.value)}
+                  style={{ padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.95rem', color: 'var(--color-text)', fontWeight: 800, background: '#f8fafc', cursor: 'pointer', outline: 'none' }}
+                >
+                  {[...(building.floors || [])]
+                    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+                    .map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.label && !/^f\d+$/.test(f.label) ? f.label : `Floor ${(f.sortOrder ?? 0) + 1}`}
+                      </option>
+                    ))}
+                </select>
                 {selectedFloorId && currentFloor && (
-                  <div className="floor-config-section" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-                    <div className="floor-config-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0 }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <select 
-                          value={selectedFloorId || ''} 
-                          onChange={(e) => setSelectedFloorId(e.target.value)}
-                          style={{ width: 'fit-content', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1.4rem', color: 'var(--color-text)', fontWeight: 800, background: '#f8fafc', cursor: 'pointer', outline: 'none' }}
-                        >
-                          {[...(building.floors || [])]
-                            .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-                            .map((f) => (
-                              <option key={f.id} value={f.id} style={{ fontSize: '1rem', fontWeight: 600 }}>
-                                {f.label && !/^f\d+$/.test(f.label) ? f.label : `Floor ${(f.sortOrder ?? 0) + 1}`}
-                              </option>
-                            ))}
-                        </select>
-                         <p className="floor-config-lede" style={{ color: '#64748b', fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>Upload floor plan image, mark units, and customize BHK/pricing details.</p>
-                      </div>
-                      <label style={{
-                        padding: '0.5rem 1rem',
-                        background: '#ffffff',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '8px',
-                        fontWeight: 600,
-                        fontSize: '0.85rem',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                      }}>
-                        <input type="file" accept="image/*" onChange={handleFloorImage} style={{ display: 'none' }} />
-                        📁 {currentFloor.imagePath ? 'Change Image' : 'Upload Image'}
-                      </label>
-                    </div>
-
-                    {floorImageSrc ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1, minHeight: 0 }}>
-                        {/* Map View */}
-                        <div style={{ position: 'relative', flex: 1, minHeight: '500px', background: '#ffffff', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-md)' }}>
-                          <ImagePlotMapView
-                            imageSrc={floorImageSrc}
-                            overlayConfig={floorOverlay}
-                            plots={unitsOnFloor}
-                            selectedPlot={unitsOnFloor.find((p) => String(p.number) === String(calibratePlotNum)) || null}
-                            onSelectPlot={(plot) => setCalibratePlotNum(plot.number)}
-                            calibrateMode
-                            onCalibrateComplete={handleCalibrateComplete}
-                            calibratePlotNum={calibratePlotNum}
-                            onCalibratePlotNumChange={setCalibratePlotNum}
-                            detailsWidth="400px"
-                            detailsSlot={({ calibPoints = [] }) => (
-                              <div style={{
-                                width: '100%',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '1.5rem',
-                              }}>
-                                {/* Calibrate Header */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                                  <h5 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--color-text)' }}>
-                                    Add & Calibrate Units
-                                  </h5>
-                                  
-                                  <button
-                                    type="button"
-                                    onClick={handleAddUnit}
-                                    className="btn-secondary"
-                                    style={{ padding: '0.75rem 1rem', borderRadius: '8px', fontSize: '0.95rem', fontWeight: 700, width: '100%', background: '#0f172a', color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
-                                  >
-                                    + Add New Unit
-                                  </button>
-
-                                  <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500, lineHeight: 1.4, background: '#f8fafc', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                    {unitGuideMessage || "Click 4 corners on the floor plan map to define the unit's boundary."}
-                                  </div>
-
-                                  {calibPoints.length > 0 && (
-                                    <div style={{ fontSize: '0.8rem', color: '#0d9488', fontWeight: 600 }}>
-                                      Calibrating: {calibPoints.length} / 4 points clicked.
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Divider */}
-                                <div style={{ borderTop: '1px solid #e2e8f0', margin: '0 -1.25rem' }}></div>
-
-                                {/* Marked Units List */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                  <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-text)', margin: 0 }}>Unit Configurations</h4>
-                                  {unitsOnFloor.length === 0 ? (
-                                    <div style={{ padding: '2rem 1rem', border: '2px dashed #cbd5e1', borderRadius: '12px', textAlign: 'center', color: '#64748b' }}>
-                                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.85rem' }}>No units marked yet. Add a unit above.</p>
-                                    </div>
-                                  ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                                      {unitsOnFloor.map((unit) => {
-                                        const expectedCfgId = unit.configId || `${unit.beds}bhk`
-                                        const cfg = currentFloor.configurations?.find(c => c.id === expectedCfgId) || 
-                                                    { id: expectedCfgId, label: expectedCfgId.toUpperCase(), rooms: {} }
-                                        
-                                        return (
-                                          <div key={unit.id} id={`unit-card-${unit.id}`} style={{ border: '1px solid #cbd5e1', borderRadius: '10px', padding: '1rem', background: '#ffffff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                                            {/* Unit Header */}
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
-                                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                                <span style={{ fontSize: '1.05rem', fontWeight: '800', color: '#1e293b' }}>
-                                                  {unit.prefix !== undefined ? unit.prefix : 'Unit'} {unit.number}
-                                                </span>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => setEditUnitNamePlot(unit)}
-                                                  style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '0.15rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
-                                                >
-                                                  Edit
-                                                </button>
-                                                
-                                                <select
-                                                  value={unit.facing || 'East'}
-                                                  onChange={(e) => handleUpdatePlot({ ...unit, facing: e.target.value })}
-                                                  style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, border: 'none', background: 'transparent', outline: 'none', cursor: 'pointer', padding: 0, marginLeft: '0.5rem' }}
-                                                >
-                                                  <option value="East">East facing</option>
-                                                  <option value="West">West facing</option>
-                                                  <option value="North">North facing</option>
-                                                  <option value="South">South facing</option>
-                                                </select>
-                                              </div>
-                                              <button
-                                                type="button"
-                                                className="btn-danger"
-                                                onClick={() => handleDeletePlot(unit)}
-                                                style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}
-                                              >
-                                                Delete
-                                              </button>
-                                            </div>
-
-                                            {/* Inputs grid */}
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                                              <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>Unit Type</span>
-                                                <select
-                                                  value={unit.configId || `${unit.beds}bhk`}
-                                                  onChange={(e) => {
-                                                    const cid = e.target.value
-                                                    let b = unit.beds
-                                                    if (cid === '1bhk') b = 1
-                                                    else if (cid === '2bhk') b = 2
-                                                    else if (cid === '3bhk') b = 3
-                                                    else if (cid === '4bhk') b = 4
-                                                    else if (cid === 'studio') b = 0
-                                                    
-                                                    setPlots(prev => prev.map(p => p.id === unit.id ? { ...p, configId: cid, beds: b } : p))
-                                                  }}
-                                                  style={{ padding: '0.4rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', outline: 'none' }}
-                                                >
-                                                  <option value="1bhk">1 BHK</option>
-                                                  <option value="2bhk">2 BHK</option>
-                                                  <option value="3bhk">3 BHK</option>
-                                                  <option value="4bhk">4 BHK</option>
-                                                  <option value="studio">Studio</option>
-                                                  <option value="custom">Custom</option>
-                                                </select>
-                                              </label>
-
-                                              <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>Status</span>
-                                                <select
-                                                  value={unit.status || 'Available'}
-                                                  onChange={(e) => {
-                                                    setPlots(prev => prev.map(p => p.id === unit.id ? { ...p, status: e.target.value } : p))
-                                                  }}
-                                                  style={{ padding: '0.4rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', outline: 'none' }}
-                                                >
-                                                  <option value="Available">Available</option>
-                                                  <option value="Booked">Booked</option>
-                                                  <option value="Sold">Sold</option>
-                                                </select>
-                                              </label>
-
-                                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
-                                                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>Area (sq ft)</span>
-                                                  <input
-                                                    type="number"
-                                                    min={0}
-                                                    value={unit.areaSqft || 0}
-                                                    onChange={(e) => {
-                                                      const val = parseInt(e.target.value, 10) || 0
-                                                      setPlots(prev => prev.map(p => p.id === unit.id ? { 
-                                                        ...p, 
-                                                        areaSqft: val,
-                                                        areaCent: parseFloat((val / 435.6).toFixed(2)),
-                                                        areaSqm: parseFloat((val / 10.764).toFixed(2)),
-                                                        estimatedPrice: val * (p.pricePerSqft || 0)
-                                                      } : p))
-                                                    }}
-                                                    style={{ padding: '0.4rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', outline: 'none' }}
-                                                  />
-                                                </label>
-
-                                                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>Price (₹)</span>
-                                                  <input
-                                                    type="number"
-                                                    min={0}
-                                                    value={unit.estimatedPrice || 0}
-                                                    onChange={(e) => {
-                                                      const val = parseInt(e.target.value, 10) || 0
-                                                      setPlots(prev => prev.map(p => p.id === unit.id ? { ...p, estimatedPrice: val } : p))
-                                                    }}
-                                                    style={{ padding: '0.4rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', outline: 'none' }}
-                                                  />
-                                                </label>
-                                              </div>
-                                            </div>
-
-                                            {/* Room panorama uploads */}
-                                            <div style={{ marginTop: '1rem', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
-                                              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: '0.75rem' }}>
-                                                Room 360° Images
-                                              </span>
-                                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                                {(() => {
-                                                  const beds = bedsForConfigurationId(cfg.id) || (cfg.label && parseInt(cfg.label, 10)) || 1
-                                                  const roomsList = [
-                                                    { id: 'hall', label: 'Living' },
-                                                    { id: 'kitchen', label: 'Kitchen' }
-                                                  ]
-                                                  for (let i = 1; i <= beds; i++) {
-                                                    roomsList.push({ id: `bedroom${i}`, label: `Bed ${i}` })
-                                                  }
-                                                  roomsList.push({ id: 'bathroom', label: 'Bath' })
-
-                                                  return roomsList.map(rm => {
-                                                    const isUploading = uploadingMedia?.configId === cfg.id && uploadingMedia?.kind === 'image' && uploadingMedia?.roomId === rm.id
-                                                    const rawImageVal = cfg.rooms?.[rm.id]
-                                                    const imageVal = rawImageVal && !rawImageVal.includes('unsplash.com') ? rawImageVal : null
-                                                    return (
-                                                      <div key={rm.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                        <span style={{ fontSize: '0.7rem', fontWeight: '600', color: '#64748b' }}>{rm.label}</span>
-                                                        {imageVal ? (
-                                                          <div style={{ position: 'relative', height: '60px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
-                                                            <img
-                                                              src={imageVal.startsWith('http') || imageVal.startsWith('data:') || imageVal.startsWith('blob:') ? imageVal : `${API_BASE}/uploads/${imageVal}`}
-                                                              alt={rm.label}
-                                                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                            />
-                                                            <button
-                                                              type="button"
-                                                              onClick={() => handleDeleteRoomMedia(cfg.id, 'image', rm.id)}
-                                                              style={{
-                                                                position: 'absolute',
-                                                                top: '4px',
-                                                                right: '4px',
-                                                                background: 'rgba(239, 68, 68, 0.9)',
-                                                                border: 'none',
-                                                                borderRadius: '50%',
-                                                                width: '18px',
-                                                                height: '18px',
-                                                                color: '#fff',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                cursor: 'pointer',
-                                                                fontSize: '10px',
-                                                                fontWeight: 'bold'
-                                                              }}
-                                                            >
-                                                              ×
-                                                            </button>
-                                                          </div>
-                                                        ) : (
-                                                          <label style={{
-                                                            height: '60px',
-                                                            border: '1.5px dashed #cbd5e1',
-                                                            borderRadius: '6px',
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            cursor: 'pointer',
-                                                            background: '#f8fafc',
-                                                            color: '#64748b',
-                                                            fontSize: '0.65rem',
-                                                            fontWeight: 600,
-                                                            textAlign: 'center',
-                                                          }}>
-                                                            <input
-                                                              type="file"
-                                                              accept="image/*"
-                                                              disabled={isUploading}
-                                                              onChange={(e) => {
-                                                                const file = e.target.files?.[0]
-                                                                if (file) uploadApartmentMedia(selectedFloorId, cfg.id, 'image', file, rm.id)
-                                                              }}
-                                                              style={{ display: 'none' }}
-                                                            />
-                                                            {isUploading ? '...' : '+ Add'}
-                                                          </label>
-                                                        )}
-                                                      </div>
-                                                    )
-                                                  })
-                                                })()}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        )
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{
-                        padding: '4rem 2rem',
-                        border: '2px dashed #cbd5e1',
-                        borderRadius: '16px',
-                        borderRadius: '12px',
-                        textAlign: 'center',
-                        background: '#fff'
-                      }}>
-                        <div style={{ fontSize: '3rem' }}>🗺️</div>
-                        <h4 style={{ margin: '0.5rem 0 0', fontWeight: '700', color: '#1e293b', fontSize: '1.15rem' }}>No floor plan uploaded for this floor.</h4>
-                        <p style={{ margin: '0.5rem 0 1.5rem', color: '#64748b' }}>Please upload a blueprint or top view image to start marking unit polygons.</p>
-                        <label className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.75rem 1.5rem', borderRadius: '8px' }}>
-                          <input type="file" accept="image/*" onChange={handleFloorImage} style={{ display: 'none' }} />
-                          📁 Upload Image
-                        </label>
-                      </div>
-                    )}
-                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setEditFloor(currentFloor)}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-accent)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Edit name
+                  </button>
                 )}
               </div>
+              
+              {selectedFloorId && currentFloor && (
+                <label style={{
+                  padding: '0.4rem 0.85rem',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}>
+                  <input type="file" accept="image/*" onChange={handleFloorImage} style={{ display: 'none' }} />
+                  📁 {currentFloor.imagePath ? 'Change floor plan blueprint' : 'Upload floor plan blueprint'}
+                </label>
+              )}
             </div>
-            <div style={{ padding: '0.5rem 1.5rem', background: '#fff', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              {selectedFloorId && currentFloor && (
+                floorImageSrc ? (
+                  <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+                    <ImagePlotMapView
+                      imageSrc={floorImageSrc}
+                      overlayConfig={floorOverlay}
+                      plots={unitsOnFloor}
+                      selectedPlot={unitsOnFloor.find((p) => String(p.number) === String(calibratePlotNum)) || null}
+                      onSelectPlot={(plot) => setCalibratePlotNum(plot.number)}
+                      calibrateMode
+                      onCalibrateComplete={handleCalibrateComplete}
+                      calibratePlotNum={calibratePlotNum}
+                      onCalibratePlotNumChange={setCalibratePlotNum}
+                      detailsWidth="360px"
+                      storageKey={`building-floor-${id}-${selectedFloorId}`}
+                      detailsSlot={({ calibPoints = [] }) => (
+                        <div style={{
+                          width: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '1rem',
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-text)' }}>
+                              Floor Units ({unitsOnFloor.length})
+                            </h5>
+                            <button
+                              type="button"
+                              onClick={handleAddUnit}
+                              style={{ padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, background: '#0f172a', color: 'white', border: 'none', cursor: 'pointer' }}
+                            >
+                              + Add Unit
+                            </button>
+                          </div>
+                          
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500, lineHeight: 1.4, background: '#f8fafc', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                            {unitGuideMessage || "Click 4 corners on the floor plan blueprint to map the unit's boundary."}
+                          </div>
+
+                          {calibPoints.length > 0 && (
+                            <div style={{ fontSize: '0.75rem', color: '#0d9488', fontWeight: 600 }}>
+                              Mapping: {calibPoints.length} / 4 corners marked.
+                            </div>
+                          )}
+
+                          <div style={{ borderTop: '1px solid #e2e8f0', margin: '0 -1.25rem' }}></div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', overflowY: 'auto' }}>
+                            {unitsOnFloor.length === 0 ? (
+                              <div style={{ padding: '1.5rem 1rem', border: '2px dashed #cbd5e1', borderRadius: '8px', textAlign: 'center', color: '#64748b' }}>
+                                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.8rem' }}>No units marked on this floor.</p>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                {unitsOnFloor.map((unit) => {
+                                  const expectedCfgId = unit.configId || `${unit.beds}bhk`
+                                  const cfg = currentFloor.configurations?.find(c => c.id === expectedCfgId) || 
+                                              { id: expectedCfgId, label: expectedCfgId.toUpperCase(), rooms: {} }
+                                  
+                                  return (
+                                    <div key={unit.id} id={`unit-card-${unit.id}`} style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.75rem', background: '#ffffff' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                                          <span style={{ fontSize: '0.95rem', fontWeight: '800', color: '#1e293b' }}>
+                                            {unit.prefix !== undefined ? unit.prefix : 'Unit'} {unit.number}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => setEditUnitNamePlot(unit)}
+                                            style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '0.1rem 0.35rem', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}
+                                          >
+                                            Edit
+                                          </button>
+                                          
+                                          <select
+                                            value={unit.facing || 'East'}
+                                            onChange={(e) => handleUpdatePlot({ ...unit, facing: e.target.value })}
+                                            style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, border: 'none', background: 'transparent', outline: 'none', cursor: 'pointer', padding: 0 }}
+                                          >
+                                            <option value="East">East facing</option>
+                                            <option value="West">West facing</option>
+                                            <option value="North">North facing</option>
+                                            <option value="South">South facing</option>
+                                          </select>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          className="btn-danger"
+                                          onClick={() => handleDeletePlot(unit)}
+                                          style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                          <label style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569' }}>Unit Type</span>
+                                            <select
+                                              value={unit.configId || `${unit.beds}bhk`}
+                                              onChange={(e) => {
+                                                const cid = e.target.value
+                                                let b = unit.beds
+                                                if (cid === '1bhk') b = 1
+                                                else if (cid === '2bhk') b = 2
+                                                else if (cid === '3bhk') b = 3
+                                                else if (cid === '4bhk') b = 4
+                                                else if (cid === 'studio') b = 0
+                                                
+                                                setPlots(prev => prev.map(p => p.id === unit.id ? { ...p, configId: cid, beds: b } : p))
+                                              }}
+                                              style={{ padding: '0.3rem', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '0.8rem', outline: 'none' }}
+                                            >
+                                              <option value="1bhk">1 BHK</option>
+                                              <option value="2bhk">2 BHK</option>
+                                              <option value="3bhk">3 BHK</option>
+                                              <option value="4bhk">4 BHK</option>
+                                              <option value="studio">Studio</option>
+                                              <option value="custom">Custom</option>
+                                            </select>
+                                          </label>
+
+                                          <label style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569' }}>Status</span>
+                                            <select
+                                              value={unit.status || 'Available'}
+                                              onChange={(e) => {
+                                                setPlots(prev => prev.map(p => p.id === unit.id ? { ...p, status: e.target.value } : p))
+                                              }}
+                                              style={{ padding: '0.3rem', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '0.8rem', outline: 'none' }}
+                                            >
+                                              <option value="Available">Available</option>
+                                              <option value="Booked">Booked</option>
+                                              <option value="Sold">Sold</option>
+                                            </select>
+                                          </label>
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                          <label style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569' }}>Area (sq ft)</span>
+                                            <input
+                                              type="number"
+                                              min={0}
+                                              value={unit.areaSqft || 0}
+                                              onChange={(e) => {
+                                                const val = parseInt(e.target.value, 10) || 0
+                                                setPlots(prev => prev.map(p => p.id === unit.id ? { 
+                                                  ...p, 
+                                                  areaSqft: val,
+                                                  areaCent: parseFloat((val / 435.6).toFixed(2)),
+                                                  areaSqm: parseFloat((val / 10.764).toFixed(2)),
+                                                  estimatedPrice: val * (p.pricePerSqft || 0)
+                                                } : p))
+                                              }}
+                                              style={{ padding: '0.3rem', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '0.8rem', outline: 'none' }}
+                                            />
+                                          </label>
+
+                                          <label style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569' }}>Price (₹)</span>
+                                            <input
+                                              type="number"
+                                              min={0}
+                                              value={unit.estimatedPrice || 0}
+                                              onChange={(e) => {
+                                                const val = parseInt(e.target.value, 10) || 0
+                                                setPlots(prev => prev.map(p => p.id === unit.id ? { ...p, estimatedPrice: val } : p))
+                                              }}
+                                              style={{ padding: '0.3rem', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '0.8rem', outline: 'none' }}
+                                            />
+                                          </label>
+                                        </div>
+                                      </div>
+
+                                      <div style={{ marginTop: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: '0.35rem' }}>
+                                          Room 360° Images
+                                        </span>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))', gap: '0.35rem' }}>
+                                          {(() => {
+                                            const beds = bedsForConfigurationId(cfg.id) || (cfg.label && parseInt(cfg.label, 10)) || 1
+                                            const roomsList = [
+                                              { id: 'hall', label: 'Living' },
+                                              { id: 'kitchen', label: 'Kitchen' }
+                                            ]
+                                            for (let i = 1; i <= beds; i++) {
+                                              roomsList.push({ id: `bedroom${i}`, label: `Bed ${i}` })
+                                            }
+                                            roomsList.push({ id: 'bathroom', label: 'Bath' })
+
+                                            return roomsList.map(rm => {
+                                              const isUploading = uploadingMedia?.configId === cfg.id && uploadingMedia?.kind === 'image' && uploadingMedia?.roomId === rm.id
+                                              const rawImageVal = cfg.rooms?.[rm.id]
+                                              const imageVal = rawImageVal && !rawImageVal.includes('unsplash.com') ? rawImageVal : null
+                                              return (
+                                                <div key={rm.id} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                  <span style={{ fontSize: '0.65rem', fontWeight: '600', color: '#64748b', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{rm.label}</span>
+                                                  {imageVal ? (
+                                                    <div style={{ position: 'relative', height: '40px', borderRadius: '4px', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
+                                                      <img
+                                                        src={imageVal.startsWith('http') || imageVal.startsWith('data:') || imageVal.startsWith('blob:') ? imageVal : `${API_BASE}/uploads/${imageVal}`}
+                                                        alt={rm.label}
+                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                      />
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteRoomMedia(cfg.id, 'image', rm.id)}
+                                                        style={{
+                                                          position: 'absolute',
+                                                          top: '2px',
+                                                          right: '2px',
+                                                          background: 'rgba(239, 68, 68, 0.9)',
+                                                          border: 'none',
+                                                          borderRadius: '50%',
+                                                          width: '14px',
+                                                          height: '14px',
+                                                          color: '#fff',
+                                                          display: 'flex',
+                                                          alignItems: 'center',
+                                                          justifyContent: 'center',
+                                                          cursor: 'pointer',
+                                                          fontSize: '8px',
+                                                          fontWeight: 'bold'
+                                                        }}
+                                                      >
+                                                        ×
+                                                      </button>
+                                                    </div>
+                                                  ) : (
+                                                    <label style={{
+                                                      height: '40px',
+                                                      border: '1px dashed #cbd5e1',
+                                                      borderRadius: '4px',
+                                                      display: 'flex',
+                                                      alignItems: 'center',
+                                                      justifyContent: 'center',
+                                                      cursor: 'pointer',
+                                                      background: '#f8fafc',
+                                                      color: '#64748b',
+                                                      fontSize: '0.6rem',
+                                                      fontWeight: 600,
+                                                    }}>
+                                                      <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        disabled={isUploading}
+                                                        onChange={(e) => {
+                                                          const file = e.target.files?.[0]
+                                                          if (file) uploadApartmentMedia(selectedFloorId, cfg.id, 'image', file, rm.id)
+                                                        }}
+                                                        style={{ display: 'none' }}
+                                                      />
+                                                      {isUploading ? '...' : '+'}
+                                                    </label>
+                                                  )}
+                                                </div>
+                                              )
+                                            })
+                                          })()}
+                                        </div>
+                                        <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
+                                          <button
+                                            type="button"
+                                            onClick={async () => {
+                                              try {
+                                                toast.loading('Saving unit...', { id: `save-${unit.id}` })
+                                                await updateLayout({ id, name: name || 'Untitled', slug: slug || name?.toLowerCase().replace(/\s+/g, '-') || 'layout', layoutKind: 'building', building, overlayConfig, plots, phaseInfo, webhookUrl: webhookUrl || null }).unwrap()
+                                                toast.success('Unit saved successfully!', { id: `save-${unit.id}` })
+                                              } catch (err) {
+                                                toast.error('Failed to save unit', { id: `save-${unit.id}` })
+                                              }
+                                            }}
+                                            style={{ padding: '0.4rem 0.75rem', background: '#0d9488', color: '#fff', fontSize: '0.75rem', fontWeight: 700, borderRadius: '4px', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                                            onMouseEnter={(e) => e.target.style.background = '#0f766e'}
+                                            onMouseLeave={(e) => e.target.style.background = '#0d9488'}
+                                          >
+                                            Save Unit Details
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    />
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '6rem 2rem',
+                    border: '2px dashed #cbd5e1',
+                    borderRadius: '12px',
+                    textAlign: 'center',
+                    background: '#fff',
+                    maxWidth: '460px',
+                    margin: '4rem auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '1rem'
+                  }}>
+                    <div style={{ fontSize: '3rem' }}>🗺️</div>
+                    <h4 style={{ margin: 0, fontWeight: '700', color: '#1e293b', fontSize: '1.1rem' }}>No Floor Plan Image</h4>
+                    <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem', lineHeight: 1.5 }}>Please upload a floor plan blueprint image to calibrate the units on this floor.</p>
+                    <label className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.65rem 1.25rem', borderRadius: '6px', fontSize: '0.85rem' }}>
+                      <input type="file" accept="image/*" onChange={handleFloorImage} style={{ display: 'none' }} />
+                      📁 Upload Blueprint
+                    </label>
+                  </div>
+                )
+              )}
+            </div>
+            
+            <div style={{ padding: '0.75rem 1.5rem', background: '#fff', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', flexShrink: 0 }}>
+              <button type="button" onClick={() => setStep(1)} className="btn-secondary" style={{ padding: '0.5rem 1.25rem', borderRadius: '8px' }}>
+                Back
+              </button>
               <button
                 type="button"
                 onClick={() => setStep(3)}
                 className="btn-primary"
-                style={{ padding: '0.5rem 1.25rem', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem' }}
+                style={{ padding: '0.5rem 1.25rem', borderRadius: '8px', fontWeight: 600 }}
               >
-                Next: Settings
+                Next: Settings & Publish
               </button>
             </div>
           </div>
         )}
+
         {step === 3 && (
-          <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', zIndex: 10, background: '#f8fafc', padding: '5.5rem 1.5rem 3rem 1.5rem', color: 'var(--color-text)' }}>
-            <div style={{ maxWidth: '800px', width: '100%', margin: '0 auto' }}>
-              
-              {/* Back Button */}
-              <button 
-                type="button" 
-                onClick={() => setStep(2)} 
-                style={{ 
-                  display: 'inline-flex', 
-                  alignItems: 'center', 
-                  gap: '0.5rem', 
-                  background: 'none', 
-                  border: 'none', 
-                  color: '#475569', 
-                  fontWeight: 700, 
-                  fontSize: '0.9rem', 
-                  cursor: 'pointer', 
-                  marginBottom: '1rem', 
-                  padding: '0.5rem 0',
-                  transition: 'color 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.color = '#0f172a'}
-                onMouseLeave={(e) => e.currentTarget.style.color = '#475569'}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                Back to Floor Plan
+          <div className="builder-step builder-step--settings" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f8fafc' }}>
+            <div className="builder-settings-content" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1.5rem' }}>
+              <div style={{ maxWidth: '800px', width: '100%', margin: '0 auto' }}>
+                
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '0.25rem' }}>
+                    Step 4: Presentation & Publish Settings
+                  </h3>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0 }}>Configure public presentations, builder agents, and webhooks.</p>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  
+                  {/* Branding Card */}
+                  <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <h4 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      🏷️ Project Details
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Building Name</span>
+                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>URL Slug</span>
+                        <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '1rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Subtitle / Phase Name (optional)</span>
+                      <input type="text" value={phaseInfo.layoutName} onChange={(e) => setPhaseInfo((p) => ({ ...p, layoutName: e.target.value }))} placeholder="e.g. Tower A, Phase I" style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '1rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Description (shown on public sidebar)</span>
+                      <textarea rows={3} value={phaseInfo.description ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, description: e.target.value }))} placeholder="Spacious 2 & 3 BHK luxury residences." style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit', resize: 'vertical' }} />
+                    </div>
+                  </div>
+
+                  {/* Contact Card */}
+                  <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <h4 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      📞 Contact & Support Options
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Contact Phone</span>
+                        <input type="tel" value={phaseInfo.phone ?? phaseInfo.contactPhone ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, phone: e.target.value, contactPhone: e.target.value }))} placeholder="+91 98765 43210" style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>WhatsApp Number</span>
+                        <input type="tel" value={phaseInfo.whatsapp ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, whatsapp: e.target.value }))} placeholder="Include country code (e.g. 919876543210)" style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Builder Agent Name</span>
+                        <input type="text" value={phaseInfo.builderName ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, builderName: e.target.value }))} placeholder="e.g. Sarah Chen - Senior Consultant" style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Company Name</span>
+                        <input type="text" value={phaseInfo.companyName ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, companyName: e.target.value }))} placeholder="e.g. LUXURY RESIDENCES CORP" style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Webhook Card */}
+                  <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: '1rem' }}>
+                    <h4 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      🔌 Webhook & CRM Integration
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Webhook URL (fires on user interest submit)</span>
+                      <input type="url" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://api.yourcrm.com/leads/webhook" style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+            </div>
+
+            <div style={{ padding: '0.75rem 1.5rem', background: '#fff', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', flexShrink: 0 }}>
+              <button type="button" onClick={() => setStep(2)} className="btn-secondary" style={{ padding: '0.5rem 1.25rem', borderRadius: '8px' }}>
+                Back
               </button>
-
-              <div style={{ marginBottom: '2rem' }}>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                  Building Settings
-                </h3>
-                <p style={{ color: '#64748b', fontSize: '0.925rem' }}>Configure public building presentation, walkthroughs, and notifications.</p>
-              </div>
-
-              {/* Section 1: Branding & Identity */}
-              <div style={{ background: '#ffffff', borderRadius: '0.875rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '2rem', marginBottom: '1.5rem' }}>
-                <h4 style={{ margin: '0 0 1.25rem 0', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
-                  Branding & Information
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Building Name</span>
-                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: 'var(--color-text)' }} />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>URL Slug</span>
-                    <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. emerald-heights-tower" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: 'var(--color-text)' }} />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '1.25rem' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Subtitle / Phase Name (optional)</span>
-                  <input type="text" value={phaseInfo.layoutName} onChange={(e) => setPhaseInfo((p) => ({ ...p, layoutName: e.target.value }))} placeholder="e.g. Tower A, Phase I" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: 'var(--color-text)' }} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Description (shown on public sidebar)</span>
-                  <textarea rows={3} value={phaseInfo.description ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, description: e.target.value }))} placeholder="Spacious 2 & 3 BHK luxury residences." style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit', resize: 'vertical', background: '#ffffff', color: 'var(--color-text)' }} />
-                </div>
-                     {/* Section 2: Contact Options */}
-              <div style={{ background: '#ffffff', borderRadius: '0.875rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '2rem', marginBottom: '1.5rem' }}>
-                <h4 style={{ margin: '0 0 1.25rem 0', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                  Contact & Support
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Contact Phone</span>
-                    <input type="tel" value={phaseInfo.phone ?? phaseInfo.contactPhone ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, phone: e.target.value, contactPhone: e.target.value }))} placeholder="+91 98765 43210" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: 'var(--color-text)' }} />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>WhatsApp Number</span>
-                    <input type="tel" value={phaseInfo.whatsapp ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, whatsapp: e.target.value }))} placeholder="Include country code (e.g. 919876543210)" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: 'var(--color-text)' }} />
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Builder Agent Name</span>
-                    <input type="text" value={phaseInfo.builderName ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, builderName: e.target.value }))} placeholder="e.g. Sarah Chen - Senior Consultant" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: 'var(--color-text)' }} />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Company Name</span>
-                    <input type="text" value={phaseInfo.companyName ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, companyName: e.target.value }))} placeholder="e.g. LUXURY RESIDENCES CORP" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: 'var(--color-text)' }} />
-                  </div>
-                </div>
-              </div>
-
-
-
-              {/* Section 4: Webhook & CRM integration */}
-              <div style={{ background: '#ffffff', borderRadius: '0.875rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', padding: '2rem', marginBottom: '2.5rem' }}>
-                <h4 style={{ margin: '0 0 1.25rem 0', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-                  Webhook & CRM integration
-                </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Webhook URL (fires on user interest submit)</span>
-                  <input type="url" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://api.yourcrm.com/leads/webhook" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: 'var(--color-text)' }} />
-                </div>
-              </div>              </div>
-
-              {/* Save Button */}
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                style={{
-                  width: '100%',
-                  padding: '1rem',
-                  fontSize: '1rem',
-                  fontWeight: 700,
-                  color: '#ffffff',
-                  background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
-                  border: 'none',
-                  borderRadius: '0.625rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(13, 148, 136, 0.35)',
-                  transition: 'all 0.25s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-1px)'
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(13, 148, 136, 0.45)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(13, 148, 136, 0.35)'
-                }}
+                className="btn-primary"
+                style={{ padding: '0.5rem 1.5rem', borderRadius: '8px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-                {saving ? 'Publishing Changes...' : 'Save Layout & Publish'}
+                💾 {saving ? 'Publishing...' : 'Save & Publish Building'}
               </button>
             </div>
           </div>

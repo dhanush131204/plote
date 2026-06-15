@@ -11,6 +11,7 @@ export default function PlotEditPopup({ plot, onSave, onClose, buildingMode = fa
   }
 
   const [form, setForm] = useState({
+    prefix: 'Unit',
     number: 101,
     floor: '',
     tower: 'A',
@@ -27,6 +28,7 @@ export default function PlotEditPopup({ plot, onSave, onClose, buildingMode = fa
   useEffect(() => {
     if (plot) {
       setForm({
+        prefix: plot.prefix ?? 'Unit',
         number: plot.number ?? 101,
         floor: plot.floor ?? '',
         tower: plot.tower ?? towers[0]?.id ?? 'A',
@@ -69,23 +71,34 @@ export default function PlotEditPopup({ plot, onSave, onClose, buildingMode = fa
       <div className="modal-content plot-edit-popup">
         <div className="modal-header">
           <h2 id="plot-edit-title">
-            {buildingMode ? 'Edit unit' : 'Edit Plot'} #{form.number || plot.number}
+            {buildingMode ? 'Edit unit' : 'Edit Plot'}: {form.prefix ? `${form.prefix} ` : ''}{form.number}
           </h2>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
             ×
           </button>
         </div>
         <form onSubmit={handleSubmit} className="modal-body">
-          <label className="plot-edit-field">
-            <span>{buildingMode ? 'Unit number' : 'Plot number'}</span>
-            <input
-              type="number"
-              min={1}
-              value={form.number}
-              onChange={(e) => handleChange('number', parseInt(e.target.value, 10) || 101)}
-              title="Change to rename this plot"
-            />
-          </label>
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+            <label className="plot-edit-field" style={{ flex: 1, marginBottom: 0 }}>
+              <span>Prefix</span>
+              <input
+                type="text"
+                value={form.prefix}
+                onChange={(e) => handleChange('prefix', e.target.value)}
+                placeholder="e.g. Unit, Plot, Shop"
+              />
+            </label>
+            <label className="plot-edit-field" style={{ flex: 1, marginBottom: 0 }}>
+              <span>{buildingMode ? 'Unit number' : 'Plot number'}</span>
+              <input
+                type="text"
+                required
+                value={form.number}
+                onChange={(e) => handleChange('number', e.target.value)}
+                title="Change to rename this plot"
+              />
+            </label>
+          </div>
           {buildingMode && (
             <>
               <label className="plot-edit-field">

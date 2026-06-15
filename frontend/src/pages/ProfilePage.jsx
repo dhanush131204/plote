@@ -33,6 +33,8 @@ export default function ProfilePage() {
     country: '',
     gst: '',
     rera: '',
+    experience: '',
+    projectsDelivered: '',
     website: '',
     about: '',
     facebook: '',
@@ -57,6 +59,8 @@ export default function ProfilePage() {
         country: user.country || '',
         gst: user.gst || '',
         rera: user.rera || '',
+        experience: user.experience || '',
+        projectsDelivered: user.projectsDelivered || '',
         website: user.website || '',
         about: user.about || '',
         facebook: user.facebook || '',
@@ -99,6 +103,8 @@ export default function ProfilePage() {
         country: user.country || '',
         gst: user.gst || '',
         rera: user.rera || '',
+        experience: user.experience || '',
+        projectsDelivered: user.projectsDelivered || '',
         website: user.website || '',
         about: user.about || '',
         facebook: user.facebook || '',
@@ -389,6 +395,14 @@ export default function ProfilePage() {
               <div className="cp-field">
                 <label>RERA Registration</label>
                 <input type="text" name="rera" value={formData.rera} onChange={handleChange} disabled={!isEditing} />
+              </div>
+              <div className="cp-field">
+                <label>Experience (Years)</label>
+                <input type="number" name="experience" value={formData.experience} onChange={handleChange} disabled={!isEditing} />
+              </div>
+              <div className="cp-field">
+                <label>Projects Delivered</label>
+                <input type="number" name="projectsDelivered" value={formData.projectsDelivered} onChange={handleChange} disabled={!isEditing} />
               </div>
             </div>
           </div>

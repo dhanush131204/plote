@@ -421,26 +421,47 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
               plotLabel={`${isBuilding ? 'Unit' : 'Plot'} ${plot.number} — ${layout?.name || 'Layout'}`}
             />
 
-            <button
-              type="button"
-              onClick={() => setInterestModalOpen(true)}
-              style={{
+            {plot.status === 'Sold' || plot.status === 'Booked' ? (
+              <div style={{
                 width: '100%',
                 padding: '1rem',
-                background: '#0a8870',
-                color: '#fff',
-                border: 'none',
+                background: plot.status === 'Sold' ? '#fef2f2' : '#fffbeb',
+                color: plot.status === 'Sold' ? '#ef4444' : '#d97706',
+                border: `1px solid ${plot.status === 'Sold' ? '#fecaca' : '#fde68a'}`,
                 borderRadius: '0.75rem',
-                fontSize: '1rem',
+                fontSize: '0.95rem',
                 fontWeight: 700,
-                cursor: 'pointer',
+                textAlign: 'center',
                 marginTop: '0.5rem',
-                boxShadow: '0 4px 12px rgba(10, 136, 112, 0.2)',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              Submit interest
-            </button>
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}>
+                🔒 This {isBuilding ? 'unit' : 'plot'} is {plot.status}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setInterestModalOpen(true)}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  background: '#0a8870',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '0.75rem',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  marginTop: '0.5rem',
+                  boxShadow: '0 4px 12px rgba(10, 136, 112, 0.2)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Submit interest
+              </button>
+            )}
 
             {layout?.plots?.length > 0 && (
               <div style={{ marginTop: '1.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
@@ -509,13 +530,34 @@ export default function PlotDetailsPanelWithLead({ plot, variant = 'default', la
                 whatsappNumber={whatsappNumber}
                 plotLabel={`${isBuilding ? 'Unit' : 'Plot'} ${plot.number} — ${layout?.name || 'Layout'}`}
               />
-              <button
-                type="button"
-                className="btn-panel-expand btn-submit-interest-trigger"
-                onClick={() => setInterestModalOpen(true)}
-              >
-                Submit interest
-              </button>
+              {plot.status === 'Sold' || plot.status === 'Booked' ? (
+                <div style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: plot.status === 'Sold' ? '#fef2f2' : '#fffbeb',
+                  color: plot.status === 'Sold' ? '#ef4444' : '#d97706',
+                  border: `1px solid ${plot.status === 'Sold' ? '#fecaca' : '#fde68a'}`,
+                  borderRadius: '0.5rem',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  textAlign: 'center',
+                  marginTop: '0.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}>
+                  🔒 This {isBuilding ? 'unit' : 'plot'} is {plot.status}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-panel-expand btn-submit-interest-trigger"
+                  onClick={() => setInterestModalOpen(true)}
+                >
+                  Submit interest
+                </button>
+              )}
             </div>
           </>
         )}

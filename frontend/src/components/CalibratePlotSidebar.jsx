@@ -7,13 +7,6 @@ const formatPrice = (num) =>
     maximumFractionDigits: 0,
   }).format(num || 0)
 
-const STATUS_FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'Available', label: 'Available' },
-  { value: 'Booked', label: 'Booked' },
-  { value: 'Sold', label: 'Sold' },
-]
-
 export default function CalibratePlotSidebar({
   plots = [],
   overlayConfig = {},
@@ -26,11 +19,7 @@ export default function CalibratePlotSidebar({
   title = 'Plots',
   emptyHint = 'Add a plot using "Add new plot" above, then click 4 corners on the map to calibrate.',
 }) {
-  const [statusFilter, setStatusFilter] = useState('all')
-
-  const filteredPlots = statusFilter === 'all'
-    ? plots
-    : plots.filter((p) => (p.status || 'Available') === statusFilter)
+  const [plotToDelete, setPlotToDelete] = useState(null)
 
   if (plots.length === 0) {
     return (
@@ -56,22 +45,10 @@ export default function CalibratePlotSidebar({
           </p>
         </>
       )}
-      <div className="calibrate-sidebar-filters">
-        {STATUS_FILTERS.map(({ value, label }) => (
-          <button
-            key={value}
-            type="button"
-            className={`calibrate-filter-chip ${statusFilter === value ? 'active' : ''}`}
-            onClick={() => setStatusFilter(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
       <ul className="calibrate-plot-list">
-        {filteredPlots.map((plot) => {
+        {plots.map((plot) => {
           const isCalibrated = overlayConfig[plot.number]?.points?.length === 4
-          const isSelected = calibratePlotNum === plot.number
+          const isSelected = String(calibratePlotNum) === String(plot.number)
           const estPrice = plot.areaSqft && plot.pricePerSqft
             ? plot.areaSqft * plot.pricePerSqft
             : plot.estimatedPrice
@@ -109,7 +86,7 @@ export default function CalibratePlotSidebar({
                     className="calibrate-plot-delete-btn"
                     onClick={(e) => {
                       e.stopPropagation()
-                      if (window.confirm(`Delete plot #${plot.number}?`)) onDeletePlot?.(plot)
+                      setPlotToDelete(plot)
                     }}
                     title="Delete plot"
                     aria-label={`Delete plot ${plot.number}`}
@@ -159,6 +136,50 @@ export default function CalibratePlotSidebar({
           )
         })}
       </ul>
+      {plotToDelete && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }}>
+          <div className="modal-backdrop" onClick={() => setPlotToDelete(null)} />
+          <div className="modal-content delete-confirm-popup" style={{ maxWidth: '400px', padding: '1.5rem', borderRadius: '12px' }}>
+            <div className="modal-header" style={{ borderBottom: 'none', padding: 0 }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: 'var(--color-text)' }}>
+                Delete {title === 'Facade floors' ? 'Floor' : 'Plot/Unit'}
+              </h3>
+            </div>
+            <div className="modal-body" style={{ padding: '1rem 0 1.5rem 0', color: 'var(--color-text-muted)', fontSize: '0.95rem' }}>
+              Are you sure you want to delete {plotToDelete.prefix !== undefined ? plotToDelete.prefix : 'Unit'} {plotToDelete.number}? This action cannot be undone.
+            </div>
+            <div className="modal-actions" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setPlotToDelete(null)}
+                style={{ padding: '0.5rem 1rem', borderRadius: '6px' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={() => {
+                  onDeletePlot?.(plotToDelete)
+                  setPlotToDelete(null)
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  borderRadius: '6px',
+                  backgroundColor: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

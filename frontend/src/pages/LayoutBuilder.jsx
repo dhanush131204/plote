@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import {
   useGetLayoutByIdQuery,
   useConvertToBuildingMutation,
@@ -49,6 +50,7 @@ export default function LayoutBuilder() {
   const [calibratePlotNum, setCalibratePlotNum] = useState(101)
   const [editPopupPlot, setEditPopupPlot] = useState(null)
   const [error, setError] = useState('')
+
 
   const handleSwitchToBuilding = async () => {
     if (!id || !layout) return
@@ -108,12 +110,14 @@ export default function LayoutBuilder() {
         fd.append('image', file)
         await uploadLayoutImage({ id: layout.id, formData: fd }).unwrap()
         setLayout((p) => ({ ...p, imagePath: `${layout.id}/plot.png` }))
+        toast.success('Layout map image uploaded successfully!')
       } else {
         const fd = new FormData()
         fd.append('image', file)
         fd.append('name', name || 'Untitled')
         const created = await createLayout(fd).unwrap()
         setLayout(created)
+        toast.success(`Plot map "${created.name || 'Untitled'}" created successfully!`)
         navigate(`/layout/${created.id}/edit`, { replace: true })
       }
       setStep(1)
@@ -139,11 +143,14 @@ export default function LayoutBuilder() {
           estimatedPrice: 0,
         },
       ])
+      toast.success(`Plot ${plotNum} created successfully!`)
+    } else {
+      toast.success(`Plot ${plotNum} updated successfully!`)
     }
   }
 
   const handleAddPlot = () => {
-    const nextNum = Math.max(101, ...plots.map((p) => p.number), 0) + 1
+    const nextNum = Math.max(101, ...plots.map((p) => parseInt(p.number, 10)).filter(n => !isNaN(n)), 0) + 1
     setPlots((prev) => [
       ...prev,
       { id: nextNum, number: nextNum, areaCent: 0, areaSqft: 0, facing: 'East', status: 'Available', pricePerSqft: 0, estimatedPrice: 0 },
@@ -169,7 +176,7 @@ export default function LayoutBuilder() {
         }
         return next
       })
-      if (calibratePlotNum === oldNumber) setCalibratePlotNum(newNumber)
+      if (String(calibratePlotNum) === String(oldNumber)) setCalibratePlotNum(newNumber)
     }
   }
 
@@ -180,7 +187,7 @@ export default function LayoutBuilder() {
       delete next[plot.number]
       return next
     })
-    if (calibratePlotNum === plot.number) {
+    if (String(calibratePlotNum) === String(plot.number)) {
       const remaining = plots.filter((p) => p.id !== plot.id && p.number !== plot.number)
       setCalibratePlotNum(remaining[0]?.number ?? 101)
     }
@@ -200,6 +207,7 @@ export default function LayoutBuilder() {
       }
       if (isEdit && layout?.id) {
         await updateLayout(payload).unwrap()
+        toast.success(`Layout "${name || 'Untitled'}" saved successfully!`)
       }
       navigate('/dashboard')
     } catch (err) {
@@ -235,7 +243,7 @@ export default function LayoutBuilder() {
 
       {/* Full Bleed Map Background */}
       {imageSrc ? (
-        <div className="builder-workspace-map">
+        <div className="builder-workspace-map" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
           <ImagePlotMapView
             imageSrc={imageSrc}
             overlayConfig={overlayConfig}
@@ -247,6 +255,7 @@ export default function LayoutBuilder() {
             calibratePlotNum={calibratePlotNum}
             onCalibratePlotNumChange={setCalibratePlotNum}
             zoomPanEnabled={step !== 1}
+            storageKey={`plot-editor-${id}`}
             detailsSlot={
               step === 1
                 ? ({ calibPoints = [] }) => (
@@ -362,10 +371,10 @@ export default function LayoutBuilder() {
                   <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Layout Name</span>
                   <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: '#0f172a' }} />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                {/* <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                   <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>URL Slug</span>
                   <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. green-plot-plan" style={{ padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: '#ffffff', color: '#0f172a' }} />
-                </div>
+                </div> */}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '1.25rem' }}>
                 <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Subtitle / Phase Name (optional)</span>

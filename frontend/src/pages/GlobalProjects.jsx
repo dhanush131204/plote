@@ -76,30 +76,28 @@ export default function GlobalProjects() {
           alignItems: 'center',
           gap: '0.75rem'
         }}>
-          {/* Toggle Button */}
-          <button
-            type="button"
-            onClick={() => setIsSearchExpanded(!isSearchExpanded)}
-            style={{
-              background: '#fff',
-              border: '1px solid var(--color-border)',
-              borderRadius: '10px',
-              width: '2.75rem',
-              height: '2.75rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--color-text-muted)',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-              transition: 'all 0.2s ease',
-              outline: 'none',
-              flexShrink: 0
-            }}
-            title="Toggle Search"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          </button>
+          {/* Always visible Search Input Box */}
+          <div style={{ width: '320px', display: 'flex', alignItems: 'center', position: 'relative' }}>
+            <svg style={{ position: 'absolute', left: '14px', color: '#94a3b8', pointerEvents: 'none' }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1.25rem 0.75rem 2.5rem',
+                borderRadius: '10px',
+                border: '1px solid var(--color-border)',
+                outline: 'none',
+                background: '#fff',
+                color: 'var(--color-text)',
+                fontSize: '0.95rem',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                transition: 'all 0.2s ease'
+              }}
+            />
+          </div>
 
           {/* Type Filter */}
           <div style={{ minWidth: '160px' }}>
@@ -125,37 +123,6 @@ export default function GlobalProjects() {
               <option value="building">Buildings</option>
             </select>
           </div>
-
-          {/* Search Input Box */}
-          {isSearchExpanded && (
-            <div style={{ width: '320px', display: 'flex', alignItems: 'center', animation: 'fadeInWidth 0.25s ease-out' }}>
-              <input
-                type="text"
-                placeholder="Search projects..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                autoFocus
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1.25rem',
-                  borderRadius: '10px',
-                  border: '1px solid var(--color-border)',
-                  outline: 'none',
-                  background: '#fff',
-                  color: 'var(--color-text)',
-                  fontSize: '0.95rem',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = 'var(--color-accent)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = 'var(--color-border)';
-                }}
-              />
-            </div>
-          )}
         </div>
       </div>
 
@@ -335,6 +302,8 @@ export default function GlobalProjects() {
           </div>
         </div>
       )}
+    
+      
     </div>
   );
 }

@@ -156,18 +156,9 @@ export default function Dashboard() {
               const isBuilding = layout.layoutKind === 'building';
               const plots = layout.plots || [];
               
-              // Calculate statistics dynamically
-              // For buildings: count configurations across all floors
-              // For plots: count plots as before
-              const totalPlots = isBuilding
-                ? (layout.floors || []).reduce((acc, f) => acc + (f.configurations?.length || 0), 0)
-                : (layout.totalPlots ?? plots.length);
-              const availablePlots = isBuilding
-                ? (layout.floors || []).reduce((acc, f) => acc + (f.configurations?.length || 0), 0)
-                : (layout.availablePlots ?? plots.filter(p => p.status?.toLowerCase() === "available").length);
-              const soldPlots = isBuilding
-                ? 0
-                : (layout.soldPlots ?? plots.filter(p => p.status?.toLowerCase() === "sold").length);
+              const totalPlots = layout.totalPlots ?? plots.length;
+              const availablePlots = layout.availablePlots ?? plots.filter(p => p.status?.toLowerCase() === "available").length;
+              const soldPlots = layout.soldPlots ?? plots.filter(p => p.status?.toLowerCase() === "sold").length;
 
               return (
               <div key={layout.id} className="project-card-premium" style={{
@@ -244,6 +235,18 @@ export default function Dashboard() {
                 <tbody>
                   {(leadsData?.leads || []).slice(0, 5).map(l => {
                     const lStatus = (l.status || 'new').toLowerCase();
+                    let inquiryType = 'Booking';
+                    try {
+                      if (l.metadata) {
+                        const meta = JSON.parse(l.metadata);
+                        if (meta && meta.inquiryType) {
+                          inquiryType = meta.inquiryType;
+                        }
+                      }
+                    } catch (e) {
+                      // Ignore
+                    }
+
                     return (
                     <tr key={l.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                       <td className="admin-cell-mono" style={{ padding: '1rem 1.25rem', verticalAlign: 'middle', fontWeight: '600', color: '#1e293b' }}>{l.trackingId || `PV-${l.id.toString().padStart(4, '0')}`}</td>
@@ -253,7 +256,40 @@ export default function Dashboard() {
                       </td>
                       <td style={{ padding: '1rem 1.25rem', verticalAlign: 'middle' }}>
                         <div style={{ fontWeight: 500, color: '#334155' }}>{l.layoutName}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>Unit/Plot {l.unitId || l.plotId}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginTop: '0.15rem' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Unit/Plot {l.unitId || l.plotId}</span>
+                          {inquiryType.toLowerCase().includes('visit') ? (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '2px',
+                              padding: '1px 6px',
+                              borderRadius: '10px',
+                              fontSize: '0.65rem',
+                              fontWeight: '700',
+                              background: '#eff6ff',
+                              color: '#1d4ed8',
+                              border: '1px solid #bfdbfe'
+                            }}>
+                              📅 site visit
+                            </span>
+                          ) : (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '2px',
+                              padding: '1px 6px',
+                              borderRadius: '10px',
+                              fontSize: '0.65rem',
+                              fontWeight: '700',
+                              background: '#ecfdf5',
+                              color: '#047857',
+                              border: '1px solid #a7f3d0'
+                            }}>
+                              ⚡ booking
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: '1rem 1.25rem', verticalAlign: 'middle' }}>
                         <span className={`badge-status ${lStatus}`} style={{
