@@ -1,9 +1,11 @@
 const express = require('express')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const crypto = require('crypto')
 const prisma = require('../prisma')
 const db = require('../db')
 const { JWT_SECRET, authMiddleware } = require('../middleware/auth')
+const { sendBuilderWelcomeEmail } = require('../utils/email')
 
 const router = express.Router()
 
@@ -98,6 +100,147 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' })
     }
     res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ─── Builder Self-Registration ───────────────────────────────────────────────
+router.post('/register-builder', async (req, res) => {
+  try {
+    const { name, companyName, phone, email, password, plan } = req.body
+
+    // Validate required fields
+    if (!name || !companyName || !phone || !email || !password) {
+      return res.status(400).json({ error: 'All fields are required.' })
+    }
+    // Validate phone — exactly 10 digits
+    if (!/^[0-9]{10}$/.test(phone.trim())) {
+      return res.status(400).json({ error: 'Phone number must be exactly 10 digits.' })
+    }
+    // Validate password length
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters.' })
+    }
+
+    const normalizedEmail = email.toLowerCase().trim()
+
+    // Check duplicate email
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
+    if (existing) {
+      return res.status(400).json({ error: 'This email is already registered.' })
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10)
+
+    // Generate a unique magic login token (valid 24h)
+    const verificationToken = crypto.randomBytes(32).toString('hex')
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
+    const user = await prisma.user.create({
+      data: {
+        email: normalizedEmail,
+        passwordHash,
+        role: 'admin',
+        name: name.trim(),
+        companyName: companyName.trim(),
+        phone: phone.trim(),
+        autoWebhookOnSubmit: 0,
+        status: 'active',
+        // Store token in documents field temporarily (no schema migration needed)
+        documents: JSON.stringify({ verificationToken, tokenExpiry, plan: plan || null }),
+      },
+    })
+
+    // Send welcome email with magic link
+    try {
+      await sendBuilderWelcomeEmail({
+        to: normalizedEmail,
+        name: name.trim(),
+        token: verificationToken,
+        plan: plan || null,
+      })
+    } catch (emailErr) {
+      console.error('Failed to send welcome email:', emailErr.message)
+      // Don't fail registration if email fails — user is already created
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Account created! Please check your email for the login link.',
+      email: normalizedEmail,
+    })
+  } catch (err) {
+    if (err.code === 'P2002') {
+      return res.status(400).json({ error: 'This email is already registered.' })
+    }
+    console.error('Builder register error:', err)
+    res.status(500).json({ error: 'Server error. Please try again.' })
+  }
+})
+
+// ─── Verify Magic Token (email link click) ────────────────────────────────────
+router.post('/verify-token', async (req, res) => {
+  try {
+    const { token } = req.body
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required.' })
+    }
+
+    // Find user where verificationToken matches inside documents JSON
+    const users = await prisma.user.findMany({
+      where: { role: 'admin' },
+      select: { id: true, email: true, role: true, name: true, documents: true, status: true },
+    })
+
+    let matchedUser = null
+    let planFromToken = null
+
+    for (const u of users) {
+      try {
+        if (!u.documents) continue
+        const parsed = JSON.parse(u.documents)
+        if (parsed.verificationToken === token) {
+          // Check expiry
+          if (new Date(parsed.tokenExpiry) < new Date()) {
+            return res.status(400).json({ error: 'This login link has expired. Please contact your administrator.' })
+          }
+          matchedUser = u
+          planFromToken = parsed.plan || null
+          break
+        }
+      } catch (_) {}
+    }
+
+    if (!matchedUser) {
+      return res.status(400).json({ error: 'Invalid or already used login link.' })
+    }
+
+    if (matchedUser.status === 'disabled') {
+      return res.status(403).json({ error: 'Your account has been disabled.' })
+    }
+
+    // Clear the token after use (one-time use)
+    await prisma.user.update({
+      where: { id: matchedUser.id },
+      data: { documents: null },
+    })
+
+    // Issue a real JWT session token
+    const jwtToken = jwt.sign({ userId: matchedUser.id }, JWT_SECRET, { expiresIn: '7d' })
+
+    res.json({
+      success: true,
+      token: jwtToken,
+      user: {
+        id: matchedUser.id,
+        email: matchedUser.email,
+        role: matchedUser.role,
+        name: matchedUser.name,
+      },
+      plan: planFromToken,
+    })
+  } catch (err) {
+    console.error('Verify token error:', err)
+    res.status(500).json({ error: 'Server error. Please try again.' })
   }
 })
 

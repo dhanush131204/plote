@@ -1,5 +1,6 @@
 const express = require('express')
 const bcrypt = require('bcrypt')
+const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
 const prisma = require('../prisma')
@@ -7,6 +8,7 @@ const db = require('../db')
 const { authMiddleware } = require('../middleware/auth')
 const { requireAdmin, requireSuperAdmin } = require('../middleware/admin')
 const { sendLeadWebhook } = require('../leadWebhook')
+const { sendBuilderWelcomeEmail } = require('../utils/email')
 
 const router = express.Router()
 
@@ -62,13 +64,18 @@ router.get('/users', requireSuperAdmin, async (req, res) => {
 
 router.post('/users', requireSuperAdmin, async (req, res) => {
   try {
-    const { email, password, role, autoWebhookOnSubmit, companyName, name, phone } = req.body
+    const { email, password, role, autoWebhookOnSubmit, companyName, name, phone, plan } = req.body
     if (!email || !password) {
       return res.status(400).json({ error: 'email and password required' })
     }
     const hash = await bcrypt.hash(password, 10)
     const aw = autoWebhookOnSubmit ? 1 : 0
     const nextRole = String(role) === 'admin' ? 'admin' : 'user'
+
+    // Generate magic login token for the welcome email (valid 24h)
+    const verificationToken = crypto.randomBytes(32).toString('hex')
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
     const user = await prisma.user.create({
       data: {
         email: String(email).toLowerCase().trim(),
@@ -78,14 +85,34 @@ router.post('/users', requireSuperAdmin, async (req, res) => {
         phone: phone || null,
         companyName: companyName || null,
         autoWebhookOnSubmit: aw,
+        // Store magic token temporarily in documents field
+        documents: nextRole === 'admin'
+          ? JSON.stringify({ verificationToken, tokenExpiry, plan: plan || null })
+          : null,
       },
     })
+
+    // Send welcome email with magic link for admin/builder accounts
+    if (nextRole === 'admin') {
+      try {
+        await sendBuilderWelcomeEmail({
+          to: String(email).toLowerCase().trim(),
+          name: name || email,
+          token: verificationToken,
+          plan: plan || null,
+        })
+      } catch (emailErr) {
+        console.error('Failed to send welcome email to builder:', emailErr.message)
+      }
+    }
+
     res.status(201).json({
       id: user.id,
       email: user.email,
       role: user.role,
       autoWebhookOnSubmit: Boolean(user.autoWebhookOnSubmit),
       createdAt: user.createdAt,
+      emailSent: nextRole === 'admin',
     })
   } catch (err) {
     if (err.code === 'P2002') {
@@ -94,6 +121,7 @@ router.post('/users', requireSuperAdmin, async (req, res) => {
     res.status(500).json({ error: 'Server error' })
   }
 })
+
 
 router.patch('/users/:id', requireSuperAdmin, async (req, res) => {
   try {
