@@ -1,3 +1,6 @@
+@import "tailwindcss";
+@source "./";
+
 *,
 *::before,
 *::after {
@@ -1652,13 +1655,26 @@ body {
   transition: background-color 0.2s ease;
 }
 
+.image-plot-map-resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background-color: #cbd5e1;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .image-plot-map-resizer::after {
   content: '';
   width: 4px;
   height: 40px;
-  background-color: var(--color-border);
+  background-color: #94a3b8;
   border-radius: 4px;
   transition: background-color 0.2s ease, height 0.2s ease;
+  z-index: 2;
 }
 
 .image-plot-map-resizer:hover,

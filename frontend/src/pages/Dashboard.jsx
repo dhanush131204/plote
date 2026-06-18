@@ -24,8 +24,12 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    refreshUser();
-  }, [refreshUser]);
+    if (user?.role === 'super_admin') {
+      navigate('/platform/dashboard', { replace: true });
+    } else {
+      refreshUser();
+    }
+  }, [user, navigate, refreshUser]);
 
   if (loading) return <div className="app-loading">Loading...</div>;
 

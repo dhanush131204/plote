@@ -4,12 +4,23 @@ import ImagePlotMapView from './ImagePlotMapView'
 import Custom3DWalkthrough from './Custom3DWalkthrough'
 import { createPortal } from 'react-dom'
 import { useCreateLeadMutation } from '../api/apiSlice'
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
+
+const getApiBase = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return `http://${window.location.hostname}:3004`;
+  }
+  return '';
+};
+const apiBase = getApiBase();
 
 export default function PremiumBuyerBuildingView({ layout }) {
   const [selectedUnit, setSelectedUnit] = useState(null)
   const [activeImageIdx, setActiveImageIdx] = useState(0)
   const [walkthroughOpen, setWalkthroughOpen] = useState(false)
   const [interestModalOpen, setInterestModalOpen] = useState(false)
+  const [inquiryType, setInquiryType] = useState('Booking') // 'Booking' or 'Visit'
   const [isFloorDropdownOpen, setIsFloorDropdownOpen] = useState(false)
   const [currentStep, setCurrentStep] = useState('facade') // 'facade' or 'floorplan'
   const [facadeAspectRatio, setFacadeAspectRatio] = useState(16 / 10)
@@ -49,6 +60,15 @@ export default function PremiumBuyerBuildingView({ layout }) {
     return sortedFloors[0]?.id || null
   })
 
+  // Sync selectedFloorId when sortedFloors updates or selectedFloorId is invalid
+  useEffect(() => {
+    if (sortedFloors.length > 0) {
+      if (!selectedFloorId || !sortedFloors.some(f => f.id === selectedFloorId)) {
+        setSelectedFloorId(sortedFloors[0].id)
+      }
+    }
+  }, [sortedFloors, selectedFloorId])
+
   const currentFloor = useMemo(() => {
     return sortedFloors.find(f => f.id === selectedFloorId) || sortedFloors[0]
   }, [sortedFloors, selectedFloorId])
@@ -73,7 +93,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
       areaSqft: cfg.areaSqft || 0,
       areaSqm: cfg.areaSqm || 0,
       facing: 'East',
-      status: 'Available',
+      status: cfg.status || 'Available',
       pricePerSqft: cfg.pricePerSqft || 0,
       estimatedPrice: (cfg.areaSqft || 0) * (cfg.pricePerSqft || 0),
       label: cfg.label || cfg.id,
@@ -83,8 +103,6 @@ export default function PremiumBuyerBuildingView({ layout }) {
   // Extract media assets for room types. Only returns real uploaded data.
   const getRoomMedia = (unit) => {
     if (!unit) return { images: [], walkthroughUrl: '', rooms: [] }
-    
-    const apiBase = import.meta.env.VITE_API_URL || ''
     
     // Find matching configuration on this floor
     const floor = (layout?.building?.floors || []).find(f => String(f.id) === String(unit.floor))
@@ -176,8 +194,23 @@ export default function PremiumBuyerBuildingView({ layout }) {
       })
     }
 
+    const unitImages = (unit.images || []).map(img => 
+      img.startsWith('http') || img.startsWith('data:') || img.startsWith('blob:')
+        ? img
+        : `${apiBase}/uploads/${img}`
+    )
+
+    console.log("getRoomMedia debug:", {
+      unitId: unit.id,
+      unitImagesRaw: unit.images,
+      unitImagesResolved: unitImages,
+      roomImages,
+      configImages,
+      apiBase
+    })
+
     return {
-      images: unit.images || (roomImages.length > 0 ? roomImages : (configImages.length > 0 ? configImages : [])),
+      images: unitImages.length > 0 ? unitImages : (roomImages.length > 0 ? roomImages : (configImages.length > 0 ? configImages : [])),
       walkthroughUrl: unit.walkthroughUrl || '',
       rooms: generatedRooms.length > 0 ? generatedRooms : []
     }
@@ -201,7 +234,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
         generated.push({
           id: `${floorId}-${cfg.id}`,
           floor: floorId,
-          status: 'Available',
+          status: cfg.status || 'Available',
         })
       })
     })
@@ -289,7 +322,10 @@ export default function PremiumBuyerBuildingView({ layout }) {
         customerName: customerName.trim(),
         contactNumber: contactNumber.trim(),
         customerEmail: customerEmail.trim(),
-        metadata: JSON.stringify({ message: customerMessage.trim(), inquiryType: 'Booking' })
+        metadata: JSON.stringify({ 
+          message: customerMessage.trim(), 
+          inquiryType: inquiryType === 'Booking' ? 'Booking' : 'Site Visit' 
+        })
       }).unwrap()
       setSubmitted(true)
       setInterestModalOpen(false)
@@ -316,7 +352,6 @@ export default function PremiumBuyerBuildingView({ layout }) {
   const builderProjects = layout?.owner?.projectsDelivered != null ? layout.owner.projectsDelivered : null
   const builderRera = layout?.owner?.rera || phaseInfo.rera || null
 
-  const apiBase = import.meta.env.VITE_API_URL || ''
   const buildingBanner = layout?.imagePath 
     ? (layout.imagePath.startsWith('http') || layout.imagePath.startsWith('data:') || layout.imagePath.startsWith('blob:')
         ? layout.imagePath
@@ -680,101 +715,206 @@ export default function PremiumBuyerBuildingView({ layout }) {
               </div>
 
               {/* Building Facade Graphic Wrapper */}
-              <div style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: '450px', background: '#0a0f1d', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{
-                  position: 'relative',
-                  width: '100%',
-                  aspectRatio: facadeAspectRatio,
-                  maxHeight: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <img 
-                    onLoad={handleFacadeImageLoad}
-                    src={layout?.building?.facadeImagePath ? `${import.meta.env.VITE_API_URL || ''}/uploads/${layout.building.facadeImagePath}` : 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80'} 
-                    alt="Building Facade Model" 
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill', display: 'block' }} 
-                  />
-
-                  {/* SVG Polygon Layers on Facade */}
-                  <svg
-                    viewBox="0 0 100 100"
-                    preserveAspectRatio="none"
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 10 }}
-                  >
-                    {sortedFloors.map(f => {
-                      const points = layout?.overlayConfig?.facadeByFloor?.[f.id]?.points
-                      if (!points || !points.length) return null
-                      const ptsStr = points.map(([x, y]) => `${x},${y}`).join(' ')
-                      const stats = allFloorsStats[f.id] || { available: 0, booked: 0, sold: 0 }
-                      
-                      let statusClass = 'available'
-                      if (stats.available > 0) {
-                        statusClass = 'available'
-                      } else if (stats.booked > 0) {
-                        statusClass = 'booked'
-                      } else {
-                        statusClass = 'sold'
-                      }
-
-                      return (
-                        <polygon
-                          key={f.id}
-                          points={ptsStr}
-                          onClick={() => {
-                            setSelectedFloorId(f.id)
-                            setSelectedUnit(null)
-                            setCurrentStep('floorplan')
-                          }}
+              <div style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: '450px', background: '#ffffff', display: 'flex', flexDirection: 'column' }}>
+                <TransformWrapper
+                  minScale={0.8}
+                  maxScale={5}
+                  limitToBounds={false}
+                  centerOnInit={true}
+                  wheel={{ step: 0.05 }}
+                  pinch={{ step: 5 }}
+                >
+                  {({ zoomIn, zoomOut, resetTransform }) => (
+                    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                      {/* Zoom control buttons */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '16px',
+                        left: '16px',
+                        zIndex: 100,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px'
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => zoomIn()}
                           style={{
-                            cursor: 'pointer',
-                            transition: 'all 0.3s ease',
-                          }}
-                          className={`image-plot-overlay-shape status-${statusClass}`}
-                        />
-                      )
-                    })}
-                  </svg>
-
-                  {/* Float Centered Label Markers */}
-                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 20 }}>
-                    {sortedFloors.map(f => {
-                      const points = layout?.overlayConfig?.facadeByFloor?.[f.id]?.points
-                      if (!points || !points.length) return null
-                      const cx = points.reduce((s, [x]) => s + x, 0) / points.length
-                      const cy = points.reduce((s, [, y]) => s + y, 0) / points.length
-                      const stats = allFloorsStats[f.id] || { color: '#10b981' }
-
-                      return (
-                        <div
-                          key={f.id}
-                          style={{
-                            position: 'absolute',
-                            left: `${cx}%`,
-                            top: `${cy}%`,
-                            transform: 'translate(-50%, -50%)',
-                            background: 'rgba(15, 23, 42, 0.95)',
-                            backdropFilter: 'blur(8px)',
-                            border: `1.5px solid ${stats.color}`,
-                            color: '#ffffff',
+                            width: '32px',
+                            height: '32px',
                             borderRadius: '8px',
-                            padding: '6px 12px',
-                            fontSize: '0.725rem',
-                            fontWeight: '800',
-                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            border: '1px solid #cbd5e1',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                            cursor: 'pointer',
+                            fontSize: '1.2rem',
+                            fontWeight: 'bold',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            whiteSpace: 'nowrap'
+                            color: '#475569',
+                            outline: 'none',
+                            transition: 'all 0.2s'
                           }}
+                          onMouseEnter={(e) => e.target.style.background = '#ffffff'}
+                          onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.9)'}
                         >
-                          <span style={{ color: '#ffffff' }}>{f.label || `Floor ${(f.sortOrder ?? 0) + 1}`}</span>
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => zoomOut()}
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            border: '1px solid #cbd5e1',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                            cursor: 'pointer',
+                            fontSize: '1.2rem',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#475569',
+                            outline: 'none',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.target.style.background = '#ffffff'}
+                          onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.9)'}
+                        >
+                          −
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => resetTransform()}
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            border: '1px solid #cbd5e1',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#475569',
+                            outline: 'none',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.target.style.background = '#ffffff'}
+                          onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.9)'}
+                        >
+                          ⟲
+                        </button>
+                      </div>
+
+                      <TransformComponent
+                        wrapperStyle={{ width: '100%', height: '100%', overflow: 'hidden' }}
+                        contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <div style={{
+                          position: 'relative',
+                          width: '100%',
+                          aspectRatio: facadeAspectRatio,
+                          maxHeight: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <img 
+                            onLoad={handleFacadeImageLoad}
+                            src={layout?.building?.facadeImagePath ? `${apiBase}/uploads/${layout.building.facadeImagePath}` : 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80'} 
+                            alt="Building Facade Model" 
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill', display: 'block' }} 
+                          />
+
+                          {/* SVG Polygon Layers on Facade */}
+                          <svg
+                            viewBox="0 0 100 100"
+                            preserveAspectRatio="none"
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 10 }}
+                          >
+                            {sortedFloors.map(f => {
+                              const points = layout?.overlayConfig?.facadeByFloor?.[f.id]?.points
+                              if (!points || !points.length) return null
+                              const ptsStr = points.map(([x, y]) => `${x},${y}`).join(' ')
+                              const stats = allFloorsStats[f.id] || { available: 0, booked: 0, sold: 0 }
+                              
+                              let statusClass = 'available'
+                              if (stats.available > 0) {
+                                statusClass = 'available'
+                              } else if (stats.booked > 0) {
+                                statusClass = 'booked'
+                              } else {
+                                statusClass = 'sold'
+                              }
+
+                              return (
+                                <polygon
+                                  key={f.id}
+                                  points={ptsStr}
+                                  onClick={() => {
+                                    setSelectedFloorId(f.id)
+                                    setSelectedUnit(null)
+                                    setCurrentStep('floorplan')
+                                  }}
+                                  style={{
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                  }}
+                                  className={`image-plot-overlay-shape status-${statusClass}`}
+                                />
+                              )
+                            })}
+                          </svg>
+
+                          {/* Float Centered Label Markers */}
+                          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 20 }}>
+                            {sortedFloors.map(f => {
+                              const points = layout?.overlayConfig?.facadeByFloor?.[f.id]?.points
+                              if (!points || !points.length) return null
+                              const cx = points.reduce((s, [x]) => s + x, 0) / points.length
+                              const cy = points.reduce((s, [, y]) => s + y, 0) / points.length
+                              const stats = allFloorsStats[f.id] || { color: '#10b981' }
+
+                              return (
+                                <div
+                                  key={f.id}
+                                  style={{
+                                    position: 'absolute',
+                                    left: `${cx}%`,
+                                    top: `${cy}%`,
+                                    transform: 'translate(-50%, -50%)',
+                                    background: 'rgba(15, 23, 42, 0.95)',
+                                    backdropFilter: 'blur(8px)',
+                                    border: `1.5px solid ${stats.color}`,
+                                    color: '#ffffff',
+                                    borderRadius: '8px',
+                                    padding: '6px 12px',
+                                    fontSize: '0.725rem',
+                                    fontWeight: '800',
+                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  <span style={{ color: '#ffffff' }}>{f.label || `Floor ${(f.sortOrder ?? 0) + 1}`}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
-                      )
-                    })}
-                  </div>
-                </div>
+                      </TransformComponent>
+                    </div>
+                  )}
+                </TransformWrapper>
               </div>
             </div>
 
@@ -1011,19 +1151,19 @@ export default function PremiumBuyerBuildingView({ layout }) {
               {/* Building Statistics Chips */}
               <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
-                  <span>{overallStats.total} Units</span>
+                  <span>{floorStats.total} Units</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#047857', background: '#ecfdf5', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #a7f3d0' }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-                  <span>{overallStats.available} Available</span>
+                  <span>{floorStats.available} Available</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#b45309', background: '#fffbeb', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #fde68a' }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b' }} />
-                  <span>{overallStats.booked} Booked</span>
+                  <span>{floorStats.booked} Booked</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c', background: '#fef2f2', padding: '0.4rem 0.75rem', borderRadius: '20px', border: '1px solid #fecaca' }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }} />
-                  <span>{overallStats.sold} Sold</span>
+                  <span>{floorStats.sold} Sold</span>
                 </div>
               </div>
             </div>
@@ -1032,7 +1172,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
             <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               {currentFloor?.imagePath ? (
                 <ImagePlotMapView
-                  imageSrc={currentFloor.imagePath.startsWith('http') || currentFloor.imagePath.startsWith('data:') || currentFloor.imagePath.startsWith('blob:') ? currentFloor.imagePath : `${import.meta.env.VITE_API_URL || ''}/uploads/${currentFloor.imagePath}`}
+                  imageSrc={currentFloor.imagePath.startsWith('http') || currentFloor.imagePath.startsWith('data:') || currentFloor.imagePath.startsWith('blob:') ? currentFloor.imagePath : `${apiBase}/uploads/${currentFloor.imagePath}`}
                   overlayConfig={layout?.overlayConfig?.byFloor?.[selectedFloorId] || {}}
                   plots={floorUnits}
                   selectedPlot={selectedUnit}
@@ -1070,7 +1210,8 @@ export default function PremiumBuyerBuildingView({ layout }) {
       )}
 
       {/* RIGHT SIDEBAR - Property Specs & Contact Panel */}
-      <aside className="premium-buyer-sidebar custom-scrollbar">
+      {!(currentStep === 'facade' && !selectedUnit) && (
+        <aside className="premium-buyer-sidebar custom-scrollbar">
         {selectedUnit ? (
           <div style={{ padding: '2.25rem 2rem', display: 'flex', flexDirection: 'column', gap: '1.75rem', flex: 1 }}>
             
@@ -1385,7 +1526,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
                     fontWeight: 700,
                     fontSize: '0.8rem',
                     textDecoration: 'none',
-                    boxShadow: '0 2px 4px rgba(37, 211, 102, 0.12)',
+                    boxShadow: '0 4px 10px rgba(37, 211, 102, 0.2)',
                     transition: 'all 0.2s ease'
                   }}
                 >
@@ -1407,8 +1548,8 @@ export default function PremiumBuyerBuildingView({ layout }) {
                     fontWeight: 700,
                     fontSize: '0.8rem',
                     textDecoration: 'none',
-                    border: '1px solid #cbd5e1',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.01)',
+                    border: '1px solid rgba(15, 23, 42, 0.08)',
+                    boxShadow: '0 4px 10px rgba(15, 23, 42, 0.06)',
                     transition: 'all 0.2s ease'
                   }}
                 >
@@ -1435,28 +1576,59 @@ export default function PremiumBuyerBuildingView({ layout }) {
                   🔒 This unit is {selectedUnit.status}
                 </div>
               ) : (
-                <button
-                  onClick={() => setInterestModalOpen(true)}
-                  className="builder-btn-interest"
-                  style={{
-                    padding: '0.7rem',
-                    border: '1px solid #10b981',
-                    borderRadius: '10px',
-                    background: '#ecfdf5',
-                    color: '#059669',
-                    fontWeight: 700,
-                    fontSize: '0.825rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.4rem'
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                  Book / Call Back Request
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <button
+                    onClick={() => {
+                      setInquiryType('Booking')
+                      setInterestModalOpen(true)
+                    }}
+                    className="builder-btn-interest"
+                    style={{
+                      padding: '0.7rem',
+                      border: '1px solid #10b981',
+                      borderRadius: '10px',
+                      background: '#ecfdf5',
+                      color: '#059669',
+                      fontWeight: 700,
+                      fontSize: '0.825rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem'
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    Book / Call Back Request
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setInquiryType('Visit')
+                      setInterestModalOpen(true)
+                    }}
+                    className="builder-btn-visit"
+                    style={{
+                      padding: '0.7rem',
+                      border: '1px solid #3b82f6',
+                      borderRadius: '10px',
+                      background: '#eff6ff',
+                      color: '#2563eb',
+                      fontWeight: 700,
+                      fontSize: '0.825rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem'
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    Request Property Tour
+                  </button>
+                </div>
               )}
             </div>
 
@@ -1464,45 +1636,7 @@ export default function PremiumBuyerBuildingView({ layout }) {
         ) : (
           /* Empty Details State - Render curated project brochure summary */
           <div style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', gap: '2rem', height: '100%', overflowY: 'auto' }} className="custom-scrollbar">
-            {currentStep === 'facade' ? (
-              <>
-                <div>
-                  <span style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: '#10b981',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.15em',
-                    display: 'inline-block',
-                    marginBottom: '0.5rem'
-                  }}>
-                    Interactive Explorer
-                  </span>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.25 }}>
-                    Explore Residences
-                  </h2>
-                </div>
-
-                <div style={{
-                  background: '#f8fafc',
-                  border: '1px dashed #cbd5e1',
-                  borderRadius: '24px',
-                  padding: '2.5rem 1.5rem',
-                  textAlign: 'center',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '1rem',
-                  color: '#475569'
-                }}>
-                  <span style={{ fontSize: '2.5rem' }}>🏢</span>
-                  <p style={{ margin: 0, fontSize: '0.925rem', fontWeight: 600, lineHeight: 1.6, color: '#475569' }}>
-                    Select a floor on the building model or choose from the list to view blueprints, check unit availability, and view 3D walkthrough tours.
-                  </p>
-                </div>
-              </>
-            ) : (
+            {currentStep === 'facade' ? null : (
               <>
                 <div>
                   <span style={{
@@ -1580,92 +1714,69 @@ export default function PremiumBuyerBuildingView({ layout }) {
 
             {/* Builder Contact Card for general query */}
             <div style={{
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '18px',
-              padding: '1.25rem',
+              background: 'transparent',
+              border: 'none',
+              padding: '0.75rem 0',
               display: 'flex',
-              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               gap: '1rem',
               marginTop: 'auto'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                {layout?.owner?.logoPath ? (
-                  <img
-                    src={`${apiBase}/uploads/${layout.owner.logoPath}`}
-                    alt="Builder Logo"
-                    style={{
-                      width: '42px',
-                      height: '42px',
-                      borderRadius: '12px',
-                      objectFit: 'contain',
-                      border: '1px solid #e2e8f0',
-                      background: '#ffffff'
-                    }}
-                  />
-                ) : (
-                  <div style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '12px',
-                    background: '#ecfdf5',
-                    color: '#10b981',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1.25rem',
-                    fontWeight: 800,
-                    border: '1px solid #a7f3d0'
-                  }}>
-                    {builderName.charAt(0)}
-                  </div>
-                )}
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '0.925rem', fontWeight: 800, color: '#0f172a' }}>
-                    {builderName}
-                  </h4>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
-                    {companyName}
-                  </p>
-                </div>
-              </div>
-
-              {(builderExperience != null || builderProjects != null) && (
-                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '0.75rem' }}>
-                  {builderExperience != null && (
-                    <div>
-                      <span style={{ color: '#94a3b8', display: 'block', fontWeight: 600 }}>Experience</span>
-                      <span style={{ fontWeight: 700, color: '#475569' }}>{builderExperience} Years</span>
-                    </div>
-                  )}
-                  {builderProjects != null && (
-                    <div>
-                      <span style={{ color: '#94a3b8', display: 'block', fontWeight: 600 }}>Projects</span>
-                      <span style={{ fontWeight: 700, color: '#475569' }}>{builderProjects} Delivered</span>
-                    </div>
-                  )}
-                </div>
-              )}
-              {builderRera && (
-                <div style={{ fontSize: '0.7rem', color: '#64748b', background: '#ffffff', padding: '6px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                  RERA: <span style={{ fontWeight: 700, color: '#334155' }}>{builderRera}</span>
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
-                <a href={`https://wa.me/${builderWhatsapp}`} target="_blank" rel="noreferrer" className="builder-btn-wa" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.55rem 0.5rem', borderRadius: '10px', background: '#25D366', color: '#ffffff', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none', boxShadow: '0 2px 4px rgba(37, 211, 102, 0.12)', transition: 'all 0.2s ease' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-                  WhatsApp
+              <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>
+                {builderName}
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+                <a 
+                  href={`https://wa.me/${builderWhatsapp}`} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="builder-btn-wa" 
+                  title="WhatsApp"
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '50%', 
+                    background: '#25D366', 
+                    color: '#ffffff', 
+                    border: 'none',
+                    boxShadow: '0 4px 12px rgba(37, 211, 102, 0.35)', 
+                    transition: 'all 0.2s ease',
+                    textDecoration: 'none'
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
                 </a>
-                <a href={`tel:${builderPhone}`} className="builder-btn-call" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.55rem 0.5rem', borderRadius: '10px', background: '#ffffff', color: '#0f172a', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.01)', transition: 'all 0.2s ease' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                  Call
+                <a 
+                  href={`tel:${builderPhone}`} 
+                  className="builder-btn-call" 
+                  title="Call"
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '50%', 
+                    background: '#ffffff', 
+                    color: '#0f172a', 
+                    border: '1px solid rgba(15, 23, 42, 0.08)', 
+                    boxShadow: '0 4px 12px rgba(15, 23, 42, 0.12)', 
+                    transition: 'all 0.2s ease',
+                    textDecoration: 'none'
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
                 </a>
               </div>
             </div>
           </div>
         )}
       </aside>
+      )}
 
       {/* 3D virtual tour overlay modal */}
       {walkthroughOpen && selectedUnit && (
@@ -1736,10 +1847,10 @@ export default function PremiumBuyerBuildingView({ layout }) {
                 marginBottom: '0.75rem',
                 animation: 'bounce 2s infinite'
               }}>
-                🔑
+                {inquiryType === 'Booking' ? '🔑' : '📅'}
               </span>
               <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>
-                Request Booking Details
+                {inquiryType === 'Booking' ? 'Request Booking Details' : 'Request Property Tour'}
               </h3>
               <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.875rem', color: '#64748b', fontWeight: 600 }}>
                 Unit {selectedUnit.number} · Floor {currentFloor?.label || '1'}
@@ -1888,7 +1999,9 @@ export default function PremiumBuyerBuildingView({ layout }) {
                 style={{
                   padding: '1rem',
                   borderRadius: '14px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  background: inquiryType === 'Booking' 
+                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+                    : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                   color: '#ffffff',
                   border: 'none',
                   fontWeight: 700,
@@ -1896,10 +2009,12 @@ export default function PremiumBuyerBuildingView({ layout }) {
                   cursor: 'pointer',
                   marginTop: '0.5rem',
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+                  boxShadow: inquiryType === 'Booking' 
+                    ? '0 4px 12px rgba(16, 185, 129, 0.2)' 
+                    : '0 4px 12px rgba(59, 130, 246, 0.2)'
                 }}
               >
-                {submittingLead ? 'Submitting...' : 'Submit Request'}
+                {submittingLead ? 'Submitting...' : (inquiryType === 'Booking' ? 'Submit Request' : 'Request Tour')}
               </button>
             </form>
           </div>
@@ -1961,6 +2076,66 @@ export default function PremiumBuyerBuildingView({ layout }) {
           >
             ×
           </button>
+        </div>
+      )}
+
+      {/* Floating builder contact buttons when sidebar is hidden */}
+      {currentStep === 'facade' && !selectedUnit && (
+        <div style={{
+          position: 'fixed',
+          bottom: '32px',
+          right: '32px',
+          zIndex: 2500,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.65rem',
+          alignItems: 'center',
+          animation: 'fade-in 0.3s ease-out'
+        }}>
+          <a 
+            href={`https://wa.me/${builderWhatsapp}`} 
+            target="_blank" 
+            rel="noreferrer" 
+            className="builder-btn-wa" 
+            title="WhatsApp"
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%', 
+              background: '#25D366', 
+              color: '#ffffff', 
+              border: 'none',
+              boxShadow: '0 8px 24px rgba(37, 211, 102, 0.4)', 
+              transition: 'all 0.2s ease',
+              textDecoration: 'none'
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+          </a>
+          <a 
+            href={`tel:${builderPhone}`} 
+            className="builder-btn-call" 
+            title="Call"
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%', 
+              background: '#ffffff', 
+              color: '#0f172a', 
+              border: '1px solid rgba(15, 23, 42, 0.08)', 
+              boxShadow: '0 8px 24px rgba(15, 23, 42, 0.15)', 
+              transition: 'all 0.2s ease',
+              textDecoration: 'none'
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+          </a>
         </div>
       )}
 

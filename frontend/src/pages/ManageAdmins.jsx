@@ -12,8 +12,9 @@ export default function ManageAdmins() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [selectedBuilder, setSelectedBuilder] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
-  const [formData, setFormData] = useState({ email: '', password: '', companyName: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', companyName: '', phone: '' });
   const [error, setError] = useState('');
+  const [emailSentTo, setEmailSentTo] = useState('');
 
   const [search, setSearch] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
@@ -95,10 +96,20 @@ export default function ManageAdmins() {
   const handleCreate = async (e) => {
     e.preventDefault();
     setError('');
+    // Validate phone
+    if (formData.phone && !/^[0-9]{10}$/.test(formData.phone.trim())) {
+      setError('Phone number must be exactly 10 digits.');
+      return;
+    }
     try {
-      await createUser({ ...formData, role: 'admin' }).unwrap();
+      const result = await createUser({ ...formData, role: 'admin' }).unwrap();
       setModalOpen(false);
-      setFormData({ email: '', password: '', companyName: '' });
+      setFormData({ name: '', email: '', password: '', companyName: '', phone: '' });
+      // Show email confirmation banner
+      if (result.emailSent) {
+        setEmailSentTo(formData.email);
+        setTimeout(() => setEmailSentTo(''), 8000);
+      }
     } catch (err) {
       setError(err?.data?.error || 'Failed to create builder account.');
     }
@@ -126,6 +137,25 @@ export default function ManageAdmins() {
           <h1 className="welcome-title" style={{ fontSize: '2.5rem', fontWeight: '800', fontFamily: 'var(--font-display)', color: '#0f172a' }}>Manage Builders</h1>
           <p className="welcome-subtitle" style={{ fontSize: '1rem', marginTop: '0.5rem', color: '#64748b' }}>Configure, disable, and monitor builder accounts.</p>
         </div>
+
+      {/* Email sent success banner */}
+      {emailSentTo && (
+        <div style={{
+          position: 'fixed', top: '20px', right: '20px', zIndex: 9999,
+          background: '#ecfdf5', border: '1.5px solid #6ee7b7',
+          borderRadius: '14px', padding: '14px 20px',
+          boxShadow: '0 8px 24px rgba(16,185,129,0.18)',
+          display: 'flex', alignItems: 'center', gap: '10px',
+          maxWidth: '380px', animation: 'ma-slide-in 0.3s ease',
+        }}>
+          <span style={{ fontSize: '1.25rem' }}>📧</span>
+          <div>
+            <p style={{ margin: 0, fontWeight: 700, color: '#065f46', fontSize: '0.9rem' }}>Welcome email sent!</p>
+            <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: '#047857' }}>Login link sent to <strong>{emailSentTo}</strong></p>
+          </div>
+          <button onClick={() => setEmailSentTo('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6ee7b7', marginLeft: 'auto', fontSize: '1.1rem', lineHeight: 1 }}>✕</button>
+        </div>
+      )}
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           {/* Toggleable Search Bar */}
           <div style={{
@@ -322,6 +352,11 @@ export default function ManageAdmins() {
             </div>
             <form className="plot-interest-modal-form" onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1rem' }}>
               {error && <div className="panel-inline-error">{error}</div>}
+              {/* Email note */}
+              {/* <div style={{ background: '#ecfdf5', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '10px', padding: '10px 14px', fontSize: '0.8125rem', color: '#065f46', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <span>📧</span>
+                <span>A welcome email with a <strong>magic login link</strong> will be sent to the builder's email automatically.</span>
+              </div> */}
               <label className="plot-interest-label">
                 <span className="sr-only">Builder Name</span>
                 <input type="text" placeholder="Builder Name" required className="panel-input" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} style={{ borderRadius: '8px' }} />
@@ -335,14 +370,14 @@ export default function ManageAdmins() {
                 <input type="email" placeholder="Login Email" required className="panel-input" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} style={{ borderRadius: '8px' }} />
               </label>
               <label className="plot-interest-label">
-                <span className="sr-only">Phone Number</span>
-                <input type="tel" placeholder="Phone Number" required className="panel-input" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} style={{ borderRadius: '8px' }} />
+                <span className="sr-only">Phone Number (10 digits)</span>
+                <input type="number" placeholder="Phone Number (10 digits)" required maxLength={10} className="panel-input" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} style={{ borderRadius: '8px' }} />
               </label>
               <label className="plot-interest-label">
                 <span className="sr-only">Temporary Password</span>
-                <input type="password" placeholder="Temporary Password" required className="panel-input" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} style={{ borderRadius: '8px' }} />
+                <input type="password" placeholder="Temporary Password (min 8 chars)" required className="panel-input" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} style={{ borderRadius: '8px' }} />
               </label>
-              <button type="submit" className="btn-primary" style={{ marginTop: '1rem', padding: '0.85rem', borderRadius: '10px' }}>Create Account</button>
+              <button type="submit" className="btn-primary" style={{ marginTop: '1rem', padding: '0.85rem', borderRadius: '10px' }}>Create Account &amp; Send Email</button>
             </form>
           </div>
         </div>

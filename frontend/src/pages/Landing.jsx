@@ -1,99 +1,91 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
-import landingBg from '../assets/landing_bg.png'
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import Navbar from '../components/SubscriptionPlans/Navbar';
+import HeroSection from '../components/SubscriptionPlans/HeroSection';
+import PricingSection from '../components/SubscriptionPlans/PricingSection';
+import ComparisonTable from '../components/SubscriptionPlans/ComparisonTable';
+import TermsSection from '../components/SubscriptionPlans/TermsSection';
+import Footer from '../components/SubscriptionPlans/Footer';
+import InquiryModal from '../components/SubscriptionPlans/InquiryModal';
+import LoginModal from '../components/LoginModal';
+import RegisterPage from './RegisterPage';
 
 export default function Landing() {
-  const { user, login } = useAuth()
-  const navigate = useNavigate()
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
+  // Only redirect super_admin and buyer — builders (admin) stay on this page to pick a plan
   useEffect(() => {
     if (user) {
-      if (user.role === 'super_admin') navigate('/platform/dashboard', { replace: true })
-      else if (user.role === 'admin') navigate('/dashboard', { replace: true })
-      else navigate('/buyer/projects', { replace: true })
+      if (user.role === 'super_admin') navigate('/platform/dashboard', { replace: true });
+      else if (user.role === 'admin') navigate('/dashboard', { replace: true });
+      else if (user.role === 'user') navigate('/buyer/projects', { replace: true });
+      // admin (builder) stays here to choose a subscription plan
     }
-  }, [user, navigate])
+  }, [user, navigate]);
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [inquiryModalOpen, setInquiryModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [registerModalOpen, setRegisterModalOpen] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      const loggedInUser = await login(email, password)
-      if (loggedInUser.role === 'super_admin') navigate('/platform/dashboard')
-      else if (loggedInUser.role === 'admin') navigate('/dashboard')
-      else navigate('/buyer/projects')
-    } catch (err) {
-      setError(err.data?.error || err.error || err.message || 'Something went wrong')
-    } finally {
-      setLoading(false)
+  const handleOpenInquiryModal = (plan) => {
+    // If not logged in — redirect to register page with plan in URL
+    if (!user) {
+      setSelectedPlan(plan);
+      setRegisterModalOpen(true);
+      return;
     }
-  }
+    // If logged in as builder — open the inquiry/checkout modal
+    setSelectedPlan(plan);
+    setInquiryModalOpen(true);
+  };
+
+  const handleCloseInquiryModal = () => {
+    setInquiryModalOpen(false);
+    setSelectedPlan(null);
+  };
+
+  const handleOpenLoginModal = () => setLoginModalOpen(true);
+  const handleCloseLoginModal = () => setLoginModalOpen(false);
+  const handleCloseRegisterModal = () => {
+    setRegisterModalOpen(false);
+    setSelectedPlan(null);
+  };
 
   return (
-    <div className="landing-page" style={{
-      backgroundImage: `linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.3) 100%), url(${landingBg})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat'
-    }}>
-      <div className="landing-inner">
-        <aside className="landing-aside">
-          <p className="landing-kicker">Digital real estate showroom</p>
-          <h1>PlotVision</h1>
-          <p className="landing-lede">
-            Create interactive plot and building experiences with live inventory, buyer enquiries, and CRM-ready leads.
-          </p>
-          <div className="landing-meta">
-            <span>Interactive maps</span>
-            <span>Public project links</span>
-            <span>Lead capture</span>
-          </div>
-        </aside>
-        <div className="landing-card">
-          <h2 className="landing-card-title">Welcome back</h2>
-          <p className="landing-card-sub">Sign in with the account provided by your administrator.</p>
-          <form onSubmit={handleSubmit}>
-            {error && <div className="landing-error">{error}</div>}
-            <div className="landing-field">
-              <label htmlFor="landing-email">Email or Username</label>
-              <input
-                id="landing-email"
-                type="text"
-                autoComplete="username"
-                placeholder="you@example.com or admin"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="landing-field">
-              <label htmlFor="landing-password">Password</label>
-              <input
-                id="landing-password"
-                type="password"
-                autoComplete="current-password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <button type="submit" disabled={loading}>
-              {loading ? 'Please wait...' : 'Log in'}
-            </button>
-          </form>
-          <p className="landing-note">
-            New accounts are created by your administrator. Buyers can open public project links shared by the sales team.
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen bg-white text-slate-800 flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
+      {/* Pass user so Navbar can hide Login when logged in */}
+      <Navbar onOpenModal={handleOpenInquiryModal} onOpenLogin={handleOpenLoginModal} user={user} />
+
+      <main className="flex-grow">
+        {/* Pass user so HeroSection can hide Sign In when logged in */}
+        <HeroSection onOpenModal={handleOpenInquiryModal} onOpenLogin={handleOpenLoginModal} user={user} />
+        <PricingSection onOpenModal={handleOpenInquiryModal} />
+        <ComparisonTable onOpenModal={handleOpenInquiryModal} />
+        <TermsSection />
+      </main>
+
+      <Footer />
+
+      <InquiryModal
+        isOpen={inquiryModalOpen}
+        onClose={handleCloseInquiryModal}
+        selectedPlan={selectedPlan}
+      />
+
+      <LoginModal
+        isOpen={loginModalOpen}
+        onClose={handleCloseLoginModal}
+      />
+
+      <RegisterPage
+        isOpen={registerModalOpen}
+        onClose={handleCloseRegisterModal}
+        onOpenLogin={handleOpenLoginModal}
+        selectedPlan={selectedPlan}
+      />
     </div>
-  )
+  );
 }

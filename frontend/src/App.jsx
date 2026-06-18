@@ -4,6 +4,8 @@ import AdminRoute from './components/AdminRoute'
 import SuperAdminRoute from './components/SuperAdminRoute'
 import AppLayout from './components/AppLayout'
 import Landing from './pages/Landing'
+import RegisterPage from './pages/RegisterPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 import Dashboard from './pages/Dashboard'
 import Layouts from './pages/Layouts'
 import PlotMaps from './pages/PlotMaps'
@@ -29,6 +31,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/v/:slug" element={<PublicView />} />
       <Route path="/track/:trackingId" element={<TrackLeadPage />} />
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

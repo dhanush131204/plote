@@ -462,7 +462,6 @@ export default function BuildingLayoutBuilder() {
       }).unwrap()
       const b = res.building || building
       setBuilding(b)
-      toast.success('Floor plan image uploaded successfully!')
     } catch (err) {
       setError(err.data?.error || err.message || 'Upload failed')
     } finally {
@@ -505,9 +504,7 @@ export default function BuildingLayoutBuilder() {
           estimatedPrice: 0,
         },
       ])
-      toast.success(`Unit ${plotNum} created successfully!`)
-    } else {
-      toast.success(`Unit ${plotNum} updated successfully!`)
+      
     }
     const nextExpected = Number(plotNum) + 1
     setUnitGuideMessage(`Unit ${plotNum} calibrated successfully! You can now adjust its details (facing, price) in the sidebar list below, or click "+ Add Unit" to add Unit ${nextExpected}.`)
@@ -1136,7 +1133,7 @@ export default function BuildingLayoutBuilder() {
                                               try {
                                                 toast.loading('Saving unit...', { id: `save-${unit.id}` })
                                                 await updateLayout({ id, name: name || 'Untitled', slug: slug || name?.toLowerCase().replace(/\s+/g, '-') || 'layout', layoutKind: 'building', building, overlayConfig, plots, phaseInfo, webhookUrl: webhookUrl || null }).unwrap()
-                                                toast.success('Unit saved successfully!', { id: `save-${unit.id}` })
+                                                toast.dismiss(`save-${unit.id}`)
                                               } catch (err) {
                                                 toast.error('Failed to save unit', { id: `save-${unit.id}` })
                                               }
