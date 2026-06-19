@@ -2,15 +2,17 @@ import React from 'react';
 import { Check, ArrowRight, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export default function PricingSection({ onOpenModal }) {
+export default function PricingSection({ onOpenModal, highlightedPlan }) {
   const plans = [
     {
-      name: 'Free Tier', price: '₹0', description: 'Ideal for trying out PlotVision capabilities and layout testing.',
+      id: 'FREE',
+      name: 'Free Tier', price: '₹0', description: 'Ideal for trying out PlotVizion capabilities and layout testing.',
       badge: 'Starter', action: 'Get Started',
       features: ['1 Layout','50 Views/Layout','Basic Lead Gen (Name + Contact)','Web App Notifications','No Analytics / API'],
       popular: false, dark: false,
     },
     {
+      id: 'TIER1',
       name: 'Tier 1', price: '₹599', priceSuffix: '/User',
       description: 'Great for individual planners and small regional operations.',
       badge: 'Growth', action: 'Buy Now',
@@ -18,6 +20,7 @@ export default function PricingSection({ onOpenModal }) {
       popular: false, dark: false,
     },
     {
+      id: 'TIER2',
       name: 'Tier 2', price: '₹1129', priceSuffix: '/User',
       description: 'Perfect for active agencies and expanding builder networks.',
       badge: 'Most Popular', action: 'Buy Now',
@@ -25,6 +28,7 @@ export default function PricingSection({ onOpenModal }) {
       popular: true, dark: false,
     },
     {
+      id: 'TIER3',
       name: 'Tier 3', price: 'Contact Sales', priceSuffix: '',
       description: 'Tailored solutions for builders, land developers & enterprises.',
       badge: 'Enterprise', action: 'Contact Sales',
@@ -37,7 +41,7 @@ export default function PricingSection({ onOpenModal }) {
     position: 'relative',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'space-between',
+    height: '100%',
     borderRadius: '16px',
     padding: '26px',
     transition: 'all 0.3s ease',
@@ -98,45 +102,56 @@ export default function PricingSection({ onOpenModal }) {
 
         {/* Pricing Cards Grid */}
         <div className="sp-pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem', alignItems: 'stretch' }}>
-          {plans.map((plan, index) => (
+          {plans.map((plan, index) => {
+            const isHighlighted = highlightedPlan && plan.name.toLowerCase() === highlightedPlan.toLowerCase()
+            return (
             <motion.div
               key={plan.name}
+              id={`plan-${plan.name.toLowerCase().replace(/\s+/g, '-')}`}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-100px' }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              style={cardStyle(plan)}
+              style={{
+                ...cardStyle(plan),
+                outline: isHighlighted ? '3px solid #f59e0b' : 'none',
+                boxShadow: isHighlighted
+                  ? '0 24px 70px rgba(245,158,11,0.24)'
+                  : cardStyle(plan).boxShadow,
+              }}
             >
-              {/* Badge */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={badgeStyle(plan)}>{plan.badge}</span>
-                {plan.popular && (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 700, color: '#059669' }}>
-                    <Zap size={14} style={{ fill: '#10b981', color: '#10b981' }} /> Best Value
-                  </span>
-                )}
-              </div>
-
-              {/* Plan info */}
-              <div style={{ marginTop: '16px' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: plan.dark ? '#fff' : '#0f172a', margin: 0 }}>{plan.name}</h3>
-                <p style={{ marginTop: '8px', fontSize: '0.875rem', color: plan.dark ? '#94a3b8' : '#64748b' }}>{plan.description}</p>
-                <div style={{ marginTop: '20px', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                  <span style={{ fontSize: plan.price.includes('Contact') ? '1.5rem' : '2rem', fontWeight: 800, color: plan.dark ? '#fff' : '#0f172a' }}>
-                    {plan.price}
-                  </span>
-                  {plan.priceSuffix && (
-                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: plan.dark ? '#94a3b8' : '#64748b' }}>{plan.priceSuffix}</span>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {/* Badge */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '28px' }}>
+                  <span style={badgeStyle(plan)}>{plan.badge}</span>
+                  {plan.popular && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 700, color: '#059669' }}>
+                      <Zap size={14} style={{ fill: '#10b981', color: '#10b981' }} /> Best Value
+                    </span>
                   )}
                 </div>
-              </div>
 
-              {/* Button */}
-              <div style={{ marginTop: '24px' }}>
-                <button onClick={() => onOpenModal(plan)} style={btnStyle(plan)}>
-                  {plan.action}
-                  <ArrowRight size={16} style={{ marginLeft: 6 }} />
-                </button>
+                {/* Plan info */}
+                <div style={{ marginTop: '16px', minHeight: '150px', display: 'flex', flexDirection: 'column' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: plan.dark ? '#fff' : '#0f172a', margin: 0 }}>{plan.name}</h3>
+                  <p style={{ marginTop: '8px', fontSize: '0.875rem', color: plan.dark ? '#94a3b8' : '#64748b' }}>{plan.description}</p>
+                  <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                    <span style={{ fontSize: plan.price.includes('Contact') ? '1.5rem' : '2rem', fontWeight: 800, color: plan.dark ? '#fff' : '#0f172a' }}>
+                      {plan.price}
+                    </span>
+                    {plan.priceSuffix && (
+                      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: plan.dark ? '#94a3b8' : '#64748b' }}>{plan.priceSuffix}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Button */}
+                <div style={{ paddingTop: '24px', minHeight: '72px', display: 'flex', alignItems: 'flex-end' }}>
+                  <button onClick={() => onOpenModal(plan)} style={btnStyle(plan)}>
+                    {plan.action}
+                    <ArrowRight size={16} style={{ marginLeft: 6 }} />
+                  </button>
+                </div>
               </div>
 
               {/* Features */}
@@ -152,7 +167,7 @@ export default function PricingSection({ onOpenModal }) {
                 </ul>
               </div>
             </motion.div>
-          ))}
+          )})}
         </div>
       </div>
 

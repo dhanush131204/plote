@@ -12,6 +12,8 @@ import ImagePlotMapView from '../components/ImagePlotMapView'
 import CalibratePlotSidebar from '../components/CalibratePlotSidebar'
 import PlotEditPopup from '../components/PlotEditPopup'
 import { isBuildingLayoutData } from '../utils/layoutKind'
+import useSubscriptionDashboard from '../hooks/useSubscriptionDashboard'
+import UpgradePrompt from '../components/subscription/UpgradePrompt'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -21,6 +23,7 @@ export default function LayoutBuilder() {
   const { id } = useParams()
   const navigate = useNavigate()
   const isEdit = Boolean(id)
+  const { subscription } = useSubscriptionDashboard({ skip: isEdit })
 
   const { data: fetchedLayout, error: queryError } = useGetLayoutByIdQuery(id, {
     skip: !isEdit,
@@ -216,6 +219,17 @@ export default function LayoutBuilder() {
   }
 
   if (loading) return <div className="app-loading">Loading...</div>
+
+  if (!isEdit && subscription.layoutLimitReached) {
+    return (
+      <div className="dashboard-container">
+        <UpgradePrompt
+          title="Layout limit reached. Upgrade your plan."
+          message="Your current plan has reached its layout limit. Upgrade to create more plot maps and building projects."
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="builder-workspace">

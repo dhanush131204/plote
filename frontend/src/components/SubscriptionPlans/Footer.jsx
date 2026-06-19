@@ -35,7 +35,7 @@ export default function Footer() {
                 </svg>
               </div>
               <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
-                Plot<span style={{ color: '#34d399' }}>Vision</span>
+                Plot<span style={{ color: '#34d399' }}>Vizion</span>
               </span>
             </div>
             <p style={{ fontSize: '0.75rem', color: '#64748b', maxWidth: '300px', lineHeight: 1.6, margin: 0 }}>
@@ -50,7 +50,7 @@ export default function Footer() {
               { label: 'Subscription Plans', href: '#pricing' },
               { label: 'Feature Matrix', href: '#comparison' },
               { label: 'Terms & Conditions', href: '#terms' },
-              { label: 'Contact Support', href: 'mailto:support@plotvision.com', isExternal: true },
+              { label: 'Contact Support', href: 'mailto:support@PlotVizion.com', isExternal: true },
             ].map(item => (
               <a
                 key={item.label}
@@ -68,7 +68,7 @@ export default function Footer() {
 
         {/* Bottom copyright */}
         <div className="sp-footer-bottom" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', paddingTop: '2rem', fontSize: '0.7rem', color: '#64748b' }}>
-          <p style={{ margin: 0 }}>© {new Date().getFullYear()} PlotVision, ThirdVizion Company. All rights reserved.</p>
+          <p style={{ margin: 0 }}>© {new Date().getFullYear()} PlotVizion, ThirdVizion Company. All rights reserved.</p>
           <p style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
             Designed for high performance.

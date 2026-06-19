@@ -1,10 +1,7 @@
-import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import { useGetPlatformAnalyticsQuery } from '../api/apiSlice';
 
 export default function SuperAdminDashboard() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const { data: analytics, isLoading, error } = useGetPlatformAnalyticsQuery();
 
@@ -52,7 +49,7 @@ export default function SuperAdminDashboard() {
             transition: 'transform 0.2s ease'
           }}>
             <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Builders</span>
-            <span style={{ fontSize: '2.75rem', fontWeight: '800', color: '#0a8870' }}>{analytics?.totalAdmins || 0}</span>
+            <span style={{ fontSize: '2.75rem', fontWeight: '800', color: '#0a8870' }}>{analytics?.totalBuilders || 0}</span>
             <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Registered Accounts</div>
           </div>
 
@@ -68,9 +65,9 @@ export default function SuperAdminDashboard() {
             gap: '0.5rem',
             transition: 'transform 0.2s ease'
           }}>
-            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Builders</span>
-            <span style={{ fontSize: '2.75rem', fontWeight: '800', color: '#16a34a' }}>{analytics?.activeAdmins || 0}</span>
-            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Enabled Accounts</div>
+            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Subscriptions</span>
+            <span style={{ fontSize: '2.75rem', fontWeight: '800', color: '#16a34a' }}>{analytics?.activeSubscriptions || 0}</span>
+            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Paid Active Plans</div>
           </div>
 
           <div className="stat-card" style={{ 
@@ -85,9 +82,60 @@ export default function SuperAdminDashboard() {
             gap: '0.5rem',
             transition: 'transform 0.2s ease'
           }}>
-            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inactive Builders</span>
-            <span style={{ fontSize: '2.75rem', fontWeight: '800', color: '#ea580c' }}>{analytics?.disabledAdmins || 0}</span>
-            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Disabled Accounts</div>
+            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Projects</span>
+            <span style={{ fontSize: '2.75rem', fontWeight: '800', color: '#2563eb' }}>{analytics?.totalProjects || 0}</span>
+            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Projects across all builders</div>
+          </div>
+
+          <div className="stat-card" style={{ 
+            background: 'rgba(255, 255, 255, 0.65)', 
+            backdropFilter: 'blur(12px)',
+            padding: '1.25rem', 
+            borderRadius: '16px', 
+            boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.03)', 
+            border: '1px solid rgba(255, 255, 255, 0.7)', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '0.5rem',
+            transition: 'transform 0.2s ease'
+          }}>
+            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Plot Maps</span>
+            <span style={{ fontSize: '2.75rem', fontWeight: '800', color: '#ea580c' }}>{analytics?.totalPlotMaps || 0}</span>
+            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Plot map projects</div>
+          </div>
+
+          <div className="stat-card" style={{ 
+            background: 'rgba(255, 255, 255, 0.65)', 
+            backdropFilter: 'blur(12px)',
+            padding: '1.25rem', 
+            borderRadius: '16px', 
+            boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.03)', 
+            border: '1px solid rgba(255, 255, 255, 0.7)', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '0.5rem',
+            transition: 'transform 0.2s ease'
+          }}>
+            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Buildings</span>
+            <span style={{ fontSize: '2.75rem', fontWeight: '800', color: '#7c3aed' }}>{analytics?.totalBuildings || 0}</span>
+            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Building projects</div>
+          </div>
+
+          <div className="stat-card" style={{ 
+            background: 'rgba(255, 255, 255, 0.65)', 
+            backdropFilter: 'blur(12px)',
+            padding: '1.25rem', 
+            borderRadius: '16px', 
+            boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.03)', 
+            border: '1px solid rgba(255, 255, 255, 0.7)', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '0.5rem',
+            transition: 'transform 0.2s ease'
+          }}>
+            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Leads</span>
+            <span style={{ fontSize: '2.75rem', fontWeight: '800', color: '#dc2626' }}>{analytics?.totalLeads || 0}</span>
+            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Captured Enquiries</div>
           </div>
 
 
@@ -111,19 +159,7 @@ export default function SuperAdminDashboard() {
               <p>Add, disable, or configure builder accounts</p>
             </div>
           </button>
-          <button className="action-card" onClick={() => navigate('/platform/projects')} style={{ 
-            background: 'rgba(255, 255, 255, 0.65)', 
-            backdropFilter: 'blur(12px)', 
-            border: '1px solid rgba(255, 255, 255, 0.7)',
-            boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.03)',
-            borderRadius: '16px'
-          }}>
-            <div className="action-icon" style={{ background: '#ecfdf5', borderRadius: '12px' }}>🗺️</div>
-            <div className="action-text">
-              <h3 style={{ fontWeight: 700 }}>Global Projects</h3>
-              <p>View all projects created across the platform</p>
-            </div>
-          </button>
+
         </div>
       </section>
 

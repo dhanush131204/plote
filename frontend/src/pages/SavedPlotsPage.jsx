@@ -84,7 +84,7 @@ export default function SavedPlotsPage() {
                   <span className="project-meta-item">Price: {formatPrice(plot.estimatedPrice)}</span>
                 </div>
                 <div className="project-card-actions">
-                  <button className="btn-primary" onClick={() => navigate(`/v/${plot.layoutSlug}`)}>
+                  <button className="btn-primary" onClick={() => navigate(`/v/${plot.layoutSlug}${plot.shareToken ? '?token=' + plot.shareToken : ''}`)}>
                     View Project
                   </button>
                   <button

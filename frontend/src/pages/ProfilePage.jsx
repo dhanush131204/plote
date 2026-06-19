@@ -1,12 +1,17 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useUpdateProfileMutation, useGetAdminActivityQuery, useGetAdminLeadsQuery, useGetLayoutsQuery, useUploadLogoMutation, useDeleteLogoMutation } from '../api/apiSlice'
+import useSubscriptionDashboard, { formatSubscriptionDate } from '../hooks/useSubscriptionDashboard'
+import UpgradePrompt from '../components/subscription/UpgradePrompt'
 
 import toast from 'react-hot-toast'
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
 export default function ProfilePage() {
+  const navigate = useNavigate()
   const { user, isAdmin, refreshUser } = useAuth()
+  const { subscription } = useSubscriptionDashboard({ skip: !isAdmin })
   const [updateProfile, { isLoading }] = useUpdateProfileMutation()
   const [uploadLogo] = useUploadLogoMutation()
   const [deleteLogo] = useDeleteLogoMutation()
@@ -202,6 +207,13 @@ export default function ProfilePage() {
   }
 
   const insightsLoading = layoutsLoading || leadsLoading || activityLoading
+  const profileFeatures = [
+    { label: 'Basic Leads', enabled: true },
+    { label: 'Web Notifications', enabled: true },
+    { label: 'Analytics', enabled: subscription.hasAnalytics },
+    { label: 'CRM Webhooks', enabled: subscription.hasWebhooks },
+    { label: 'WhatsApp Automation', enabled: subscription.features.whatsappAutomation },
+  ]
 
   // Admin / Builder view — tabs for Profile + Insights
   return (
@@ -325,6 +337,54 @@ export default function ProfilePage() {
       {/* TAB: Profile */}
       {activeTab === 'profile' && (
         <form className="cp-form" onSubmit={handleSubmit}>
+          <div className="cp-section">
+            <div className="cp-section-head">
+              <h3>Subscription</h3>
+              <p>Your plan, renewal status, and available builder features.</p>
+            </div>
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+                <div className="profile-row" style={{ margin: 0 }}>
+                  <span>Current Plan</span>
+                  <strong>{subscription.plan}</strong>
+                </div>
+                <div className="profile-row" style={{ margin: 0 }}>
+                  <span>Status</span>
+                  <strong>{subscription.statusLabel}</strong>
+                </div>
+                <div className="profile-row" style={{ margin: 0 }}>
+                  <span>Renewal Date</span>
+                  <strong>{formatSubscriptionDate(subscription.expiryDate)}</strong>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gap: '0.55rem' }}>
+                {profileFeatures.map((feature) => (
+                  <div
+                    key={feature.label}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '1rem',
+                      padding: '0.75rem 0.85rem',
+                      borderRadius: '8px',
+                      background: feature.enabled ? 'rgba(16,185,129,0.08)' : '#f8fafc',
+                      border: feature.enabled ? '1px solid rgba(16,185,129,0.18)' : '1px solid #e2e8f0',
+                    }}
+                  >
+                    <span style={{ color: '#0f172a', fontWeight: 700 }}>{feature.label}</span>
+                    <span style={{ color: feature.enabled ? '#047857' : '#94a3b8', fontWeight: 800 }}>
+                      {feature.enabled ? 'Enabled' : 'Locked'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="btn-primary" onClick={() => navigate('/subscription', { state: { targetPlan: 'Tier 1' } })}>
+                Upgrade Plan
+              </button>
+            </div>
+          </div>
+
           {/* General Information */}
           <div className="cp-section">
             <div className="cp-section-head">
@@ -412,7 +472,12 @@ export default function ProfilePage() {
       {/* TAB: Insights */}
       {activeTab === 'insights' && (
         <div className="cp-insights">
-          {insightsLoading ? (
+          {!subscription.hasAnalytics ? (
+            <UpgradePrompt
+              title="This feature is available in Tier 1 and above."
+              message="Upgrade your plan to unlock project activity insights, conversion trends, and engagement analytics."
+            />
+          ) : insightsLoading ? (
             <div className="app-loading">Loading insights...</div>
           ) : (
             <>

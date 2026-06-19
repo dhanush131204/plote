@@ -96,7 +96,7 @@ export default function VerifyEmailPage() {
               </svg>
             </div>
             <span style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
-              Plot<span style={{ color: '#10b981' }}>Vision</span>
+              Plot<span style={{ color: '#10b981' }}>Vizion</span>
             </span>
           </div>
 
@@ -134,7 +134,7 @@ export default function VerifyEmailPage() {
                 Login Successful! 🎉
               </h2>
               <p style={{ fontSize: '0.9rem', color: '#64748b', margin: '0 0 20px', lineHeight: 1.6 }}>
-                You are now logged in to PlotVision.
+                You are now logged in to PlotVizion.
                 {planFromUrl && (
                   <> Your <strong style={{ color: '#10b981' }}>{planFromUrl}</strong> plan selection has been saved.</>
                 )}

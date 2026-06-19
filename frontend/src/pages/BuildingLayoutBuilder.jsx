@@ -24,6 +24,8 @@ import {
 } from '../utils/buildingSchema'
 import { isPlotOnlyLayout } from '../utils/layoutKind'
 import toast from 'react-hot-toast'
+import useSubscriptionDashboard from '../hooks/useSubscriptionDashboard'
+import UpgradePrompt from '../components/subscription/UpgradePrompt'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -32,6 +34,7 @@ const STEPS = ['Building Name', 'Building Image', 'Floor Plans & Units', 'Settin
 export default function BuildingLayoutBuilder() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { subscription } = useSubscriptionDashboard({ skip: Boolean(id) })
 
   const { data: fetchedLayout, error: queryError } = useGetLayoutByIdQuery(id, { skip: !id })
   const [createLayout, { isLoading: creating }] = useCreateLayoutMutation()
@@ -615,6 +618,17 @@ export default function BuildingLayoutBuilder() {
   }
 
   if (loading) return <div className="app-loading">Loading...</div>
+
+  if (!id && subscription.layoutLimitReached) {
+    return (
+      <div className="dashboard-container">
+        <UpgradePrompt
+          title="Layout limit reached. Upgrade your plan."
+          message="Your current plan has reached its layout limit. Upgrade to create more plot maps and building projects."
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="builder-workspace">

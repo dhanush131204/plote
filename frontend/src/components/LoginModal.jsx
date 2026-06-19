@@ -120,7 +120,7 @@ export default function LoginModal({ isOpen, onClose }) {
               </svg>
             </div>
             <span style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>
-              Plot<span style={{ color: '#10b981' }}>Vision</span>
+              Plot<span style={{ color: '#10b981' }}>Vizion</span>
             </span>
           </div>
 

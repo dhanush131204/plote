@@ -13,12 +13,16 @@ export default function Sidebar({ isCollapsed, onToggle }) {
     { to: '/projects', label: 'My Projects' },
     { to: '/admin/leads', label: 'Leads' },
     { to: '/profile', label: 'Company Profile' },
+    { to: '/subscription', label: 'Subscription' },
   ];
 
   const superAdminLinks = [
     { to: '/platform/dashboard', label: 'Dashboard' },
     { to: '/platform/admins', label: 'Manage Builders' },
-    { to: '/platform/projects', label: 'Global Projects' },
+    { to: '/platform/subscriptions', label: 'Subscriptions' },
+    { to: '/platform/payments', label: 'Payments' },
+    { to: '/platform/revenue', label: 'Revenue Analytics' },
+    { to: '/platform/settings', label: 'Settings' },
   ];
 
   const buyerLinks = [
@@ -35,7 +39,7 @@ export default function Sidebar({ isCollapsed, onToggle }) {
       <div className="sidebar-logo" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-          <span>PlotVision</span>
+          <span>PlotVizion</span>
         </div>
         <button 
           onClick={onToggle}

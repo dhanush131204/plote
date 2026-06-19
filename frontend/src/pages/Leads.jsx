@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useGetAdminLeadsQuery, usePushLeadWebhookMutation, useUpdateLeadStatusMutation, useDeleteLeadMutation } from '../api/apiSlice';
 import { normalizeDateValue } from '../utils/dateUtils';
+import useSubscriptionDashboard from '../hooks/useSubscriptionDashboard';
+import UpgradePrompt from '../components/subscription/UpgradePrompt';
+import { SkeletonLeads } from '../components/SkeletonLoaders';
 
 export default function Leads() {
   const { data: leadsData, isLoading: loadingLeads, error: errorLeads } = useGetAdminLeadsQuery(100);
+  const { subscription } = useSubscriptionDashboard();
   const [pushWebhookTrigger] = usePushLeadWebhookMutation();
   const [deleteLead] = useDeleteLeadMutation();
 
@@ -36,6 +40,10 @@ export default function Leads() {
   };
 
   const pushLeadWebhook = async (leadId) => {
+    if (!subscription.hasWebhooks) {
+      setError('CRM webhooks are available in Tier 2 and above.');
+      return;
+    }
     setError('');
     try {
       await pushWebhookTrigger(leadId).unwrap();
@@ -62,13 +70,24 @@ export default function Leads() {
     });
   };
 
-  if (loadingLeads) return <div className="app-loading">Loading CRM...</div>;
+  if (loadingLeads) return <SkeletonLeads />;
 
   return (
     <div className="dashboard-container">
       {error && <div className="dashboard-error">{error}</div>}
 
       <section className="crm-section">
+        {!subscription.hasWebhooks && (
+          <div style={{ marginBottom: '1.25rem' }}>
+            <UpgradePrompt
+              compact
+              title="CRM webhooks are available in Tier 2 and above."
+              message="You can still view and manage leads on your current plan. Upgrade to push leads directly to your CRM."
+              targetPlan="Tier 2"
+            />
+          </div>
+        )}
+
         <div className="dashboard-intro" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
           <div>
             <h1 style={{fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem'}}>Leads Pipeline</h1>
@@ -271,6 +290,7 @@ export default function Leads() {
                             cursor: 'pointer',
                             boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                           }} 
+                          disabled={!subscription.hasWebhooks}
                           onClick={() => pushLeadWebhook(l.id)}
                         >
                           Push Webhook

@@ -1,12 +1,17 @@
 import { useMemo } from 'react'
 import { useGetAdminActivityQuery, useGetAdminLeadsQuery, useGetLayoutsQuery } from '../api/apiSlice'
+import useSubscriptionDashboard from '../hooks/useSubscriptionDashboard'
+import UpgradePrompt from '../components/subscription/UpgradePrompt'
+import { SkeletonInsights } from '../components/SkeletonLoaders'
 
 export default function Insights() {
-  const { data: layouts = [], isLoading: layoutsLoading } = useGetLayoutsQuery()
-  const { data: leadsData, isLoading: leadsLoading } = useGetAdminLeadsQuery(100)
-  const { data: activityData, isLoading: activityLoading } = useGetAdminActivityQuery(200)
+  const { subscription, isLoading: subscriptionLoading } = useSubscriptionDashboard()
+  const analyticsLocked = !subscription.hasAnalytics
+  const { data: layouts = [], isLoading: layoutsLoading } = useGetLayoutsQuery(undefined, { skip: analyticsLocked })
+  const { data: leadsData, isLoading: leadsLoading } = useGetAdminLeadsQuery(100, { skip: analyticsLocked })
+  const { data: activityData, isLoading: activityLoading } = useGetAdminActivityQuery(200, { skip: analyticsLocked })
 
-  const loading = layoutsLoading || leadsLoading || activityLoading
+  const loading = subscriptionLoading || layoutsLoading || leadsLoading || activityLoading
   const leads = leadsData?.leads || []
   const events = activityData?.events || []
 
@@ -28,7 +33,7 @@ export default function Insights() {
     }).sort((a, b) => (b.views + b.selections + b.leads) - (a.views + a.selections + a.leads))
   }, [layouts, events, leads])
 
-  if (loading) return <div className="app-loading">Loading insights...</div>
+  if (loading) return <SkeletonInsights />
 
   return (
     <div className="dashboard-container">

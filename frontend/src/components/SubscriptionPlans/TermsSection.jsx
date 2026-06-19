@@ -29,7 +29,7 @@ export default function TermsSection() {
         {/* Header */}
         <div style={{ maxWidth: '48rem', margin: '0 auto', textAlign: 'center', marginBottom: '3rem' }}>
           <h2 style={{ fontSize: '1rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#10b981', margin: 0 }}>
-            PlotVision Terms & Agreements
+            PlotVizion Terms & Agreements
           </h2>
           <p style={{ marginTop: '12px', fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#0f172a', lineHeight: 1.2 }}>
             Terms & Conditions

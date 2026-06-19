@@ -109,8 +109,12 @@ export const apiSlice = createApi({
       providesTags: (result, error, id) => [{ type: 'Layout', id }],
     }),
     getLayoutBySlug: builder.query({
-      query: (slug) => `/api/layouts/by-slug/${slug}`,
-      providesTags: (result, error, slug) => [{ type: 'Layout', id: slug }],
+      query: ({ slug, token }) => {
+        let url = `/api/layouts/by-slug/${slug}`;
+        if (token) url += `?token=${token}`;
+        return url;
+      },
+      providesTags: (result, error, { slug }) => [{ type: 'Layout', id: slug }],
     }),
     createLayout: builder.mutation({
       query: (layoutData) => ({
@@ -200,6 +204,10 @@ export const apiSlice = createApi({
     getPlatformAnalytics: builder.query({
       query: () => '/api/admin/analytics',
       providesTags: ['User', 'Layout', 'Lead'],
+    }),
+    getSubscriptionDashboard: builder.query({
+      query: () => '/api/subscription/dashboard',
+      providesTags: ['User', 'Layout'],
     }),
     getAdminUsers: builder.query({
       query: () => '/api/admin/users',
@@ -292,6 +300,55 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: [{ type: 'Activity', id: 'LIST' }],
     }),
+    getAdminSubscriptions: builder.query({
+      query: () => '/api/admin/subscriptions',
+      providesTags: ['User'],
+    }),
+    overrideSubscription: builder.mutation({
+      query: (data) => ({
+        url: '/api/admin/subscriptions/override',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['User'],
+    }),
+    createOrder: builder.mutation({
+      query: (data) => ({
+        url: '/api/subscription/create-order',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    // DEMO MODE: Directly activates plan without real payment (comment out when going live)
+    demoActivatePlan: builder.mutation({
+      query: (data) => ({
+        url: '/api/subscription/demo-activate',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['User'],
+    }),
+    verifyPayment: builder.mutation({
+      query: (data) => ({
+        url: '/api/subscription/verify-payment',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['User'],
+    }),
+    getAdminPayments: builder.query({
+      query: () => '/api/admin/payments',
+    }),
+    getAdminSettings: builder.query({
+      query: () => '/api/admin/settings',
+    }),
+    updateAdminSetting: builder.mutation({
+      query: (settingData) => ({
+        url: '/api/admin/settings',
+        method: 'PUT',
+        body: settingData,
+      }),
+    }),
   }),
 })
 
@@ -314,6 +371,7 @@ export const {
   useUploadFloorImageMutation,
   useUploadApartmentMediaMutation,
   useGetPlatformAnalyticsQuery,
+  useGetSubscriptionDashboardQuery,
   useGetAdminUsersQuery,
   useGetAdminLeadsQuery,
   useGetMyLeadsQuery,
@@ -327,4 +385,12 @@ export const {
   useCreateLeadMutation,
   useTrackLeadQuery,
   usePostActivityMutation,
+  useGetAdminSubscriptionsQuery,
+  useOverrideSubscriptionMutation,
+  useCreateOrderMutation,
+  useDemoActivatePlanMutation, // DEMO MODE — comment out when going live
+  useVerifyPaymentMutation,
+  useGetAdminPaymentsQuery,
+  useGetAdminSettingsQuery,
+  useUpdateAdminSettingMutation,
 } = apiSlice

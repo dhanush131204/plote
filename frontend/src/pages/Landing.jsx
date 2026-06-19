@@ -30,6 +30,14 @@ export default function Landing() {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('register') === 'true') {
+      setRegisterModalOpen(true);
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
+
   const handleOpenInquiryModal = (plan) => {
     // If not logged in — redirect to register page with plan in URL
     if (!user) {
@@ -57,7 +65,12 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-white text-slate-800 flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
       {/* Pass user so Navbar can hide Login when logged in */}
-      <Navbar onOpenModal={handleOpenInquiryModal} onOpenLogin={handleOpenLoginModal} user={user} />
+      <Navbar
+        onOpenModal={handleOpenInquiryModal}
+        onOpenLogin={handleOpenLoginModal}
+        onOpenRegister={() => setRegisterModalOpen(true)}
+        user={user}
+      />
 
       <main className="flex-grow">
         {/* Pass user so HeroSection can hide Sign In when logged in */}

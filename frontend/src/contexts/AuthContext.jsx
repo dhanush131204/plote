@@ -62,7 +62,7 @@ export function AuthProvider({ children }) {
   }
 
   const isAdmin = user?.role === 'admin'
-  const loading = token ? isLoading && !user : false
+  const loading = token ? (!user && !error) : false
 
   return (
     <AuthContext.Provider value={{ user, loading, login, signup, logout, isAdmin, refreshUser }}>

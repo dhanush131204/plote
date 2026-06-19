@@ -164,7 +164,7 @@ export default function ProjectsPage() {
                     )}
                   </div>
                   <div className="project-card-actions">
-                    <button className="btn-primary" onClick={() => navigate(`/v/${layout.slug}`)}>
+                    <button className="btn-primary" onClick={() => navigate(`/v/${layout.slug}${layout.shareToken ? '?token=' + layout.shareToken : ''}`)}>
                       View
                     </button>
                   </div>

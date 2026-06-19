@@ -120,7 +120,7 @@ export default function MyInterestsPage() {
                     <td>{formatPrice(plot.estimatedPrice)}</td>
                     <td><span className={`status-${(plot.status || 'available').toLowerCase()}`}>{plot.status || 'Available'}</span></td>
                     <td style={{ textAlign: 'right' }}>
-                      <button className="btn-secondary" onClick={() => navigate(`/v/${plot.layoutSlug}?plotId=${plot.plotId}`)} style={{ marginRight: '0.5rem' }}>
+                      <button className="btn-secondary" onClick={() => navigate(`/v/${plot.layoutSlug}${plot.shareToken ? '?token=' + plot.shareToken + '&' : '?'}plotId=${plot.plotId}`)} style={{ marginRight: '0.5rem' }}>
                         View Plot
                       </button>
                       <button className="btn-danger" onClick={() => handleRemoveSavedPlot(plot.plotId)}>

@@ -93,7 +93,7 @@ export default function TrackLeadPage() {
       </div>
 
       <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-        <Link to={`/v/${lead.layoutSlug}?plotId=${lead.plotId}`} className="btn-secondary">
+        <Link to={`/v/${lead.layoutSlug}${lead.shareToken ? '?token=' + lead.shareToken + '&' : '?'}plotId=${lead.plotId}`} className="btn-secondary">
           View Project Map
         </Link>
       </div>

@@ -2,11 +2,16 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGetLayoutsQuery, useDeleteLayoutMutation, useUpdateLayoutMutation } from '../api/apiSlice';
 import toast from 'react-hot-toast';
+import useSubscriptionDashboard, { formatPlanLimit } from '../hooks/useSubscriptionDashboard';
+import { ExternalLink } from 'lucide-react';
+
+import { SkeletonLayouts } from '../components/SkeletonLoaders';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export default function Layouts() {
   const { data: layouts = [], isLoading: loading, error } = useGetLayoutsQuery();
+  const { subscription } = useSubscriptionDashboard();
   const [deleteLayout] = useDeleteLayoutMutation();
   const [updateLayout] = useUpdateLayoutMutation();
   const navigate = useNavigate();
@@ -41,7 +46,7 @@ export default function Layouts() {
     setCurrentPage(1);
   }, [search, typeFilter, statusFilter]);
 
-  if (loading) return <div className="app-loading">Loading Projects...</div>;
+  if (loading) return <SkeletonLayouts />;
 
   const filteredLayouts = layouts.filter(layout => {
     const nameMatches = (layout.name || '').toLowerCase().includes(search.toLowerCase());
@@ -75,7 +80,7 @@ export default function Layouts() {
             <h1 style={{fontFamily: 'var(--font-display)', fontSize: '2.2rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.5rem'}}>My Projects</h1>
             <p style={{color: 'var(--color-text-muted)', fontSize: '0.95rem'}}>Manage all your plot maps and building layouts.</p>
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <button 
               style={{ 
                 height: '2.85rem', 
@@ -94,6 +99,7 @@ export default function Layouts() {
                 transition: 'all 0.15s ease'
               }} 
               onClick={() => navigate('/create/building')}
+              disabled={subscription.layoutLimitReached}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = '#f8fafc';
                 e.currentTarget.style.borderColor = '#94a3b8';
@@ -123,13 +129,54 @@ export default function Layouts() {
                 transition: 'all 0.15s ease'
               }} 
               onClick={() => navigate('/create')}
+              disabled={subscription.layoutLimitReached}
               onMouseEnter={(e) => e.currentTarget.style.background = '#047857'}
               onMouseLeave={(e) => e.currentTarget.style.background = '#059669'}
             >
               + New Plot Map
             </button>
+            <button className="btn-primary" type="button" onClick={() => navigate('/subscription', { state: { targetPlan: 'Tier 1' } })}>
+              Upgrade Plan
+            </button>
           </div>
         </div>
+
+        <section
+          style={{
+            background: 'rgba(255, 255, 255, 0.72)',
+            backdropFilter: 'blur(14px)',
+            border: '1px solid rgba(255, 255, 255, 0.72)',
+            boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
+            borderRadius: '18px',
+            padding: '1rem 1.25rem',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: '#0f766e', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Current Plan
+              </div>
+              <div style={{ marginTop: '0.25rem', fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
+                Plan: {subscription.plan}
+              </div>
+            </div>
+            <div style={{ display: 'grid', gap: '0.35rem', minWidth: '240px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', fontWeight: 700 }}>
+                <span>Layouts:</span>
+                <span>{subscription.layoutsUsed} / {formatPlanLimit(subscription.layoutsAllowed)} Used</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', fontWeight: 700 }}>
+                <span>Buildings:</span>
+                <span>{subscription.buildingsUsed} / {formatPlanLimit(subscription.buildingsAllowed)} Used</span>
+              </div>
+            </div>
+          </div>
+          {subscription.layoutLimitReached && (
+            <div style={{ marginTop: '0.85rem', color: '#b45309', fontWeight: 700 }}>
+              Layout limit reached. Upgrade your plan.
+            </div>
+          )}
+        </section>
   
         {/* Filter & Search Toolbar */}
         {layouts.length > 0 && (
@@ -216,19 +263,31 @@ export default function Layouts() {
       {error && <div className="dashboard-error">Error loading layouts.</div>}
 
       {layouts.length === 0 ? (
-        <div className="empty-state-premium">
-          <div className="empty-illustration">🗺️</div>
-          <h3>No Projects Found</h3>
-          <p>You haven't created any layouts yet. Get started by creating your first project.</p>
-          <div style={{marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center'}}>
-            <button className="btn-primary" onClick={() => navigate('/create')}>Create Plot Map</button>
-            <button className="btn-secondary" onClick={() => navigate('/create/building')}>Create Building</button>
+        <div className="empty-state-premium" style={{ borderStyle: 'solid', background: '#ffffff', boxShadow: 'var(--shadow-md)', padding: '4rem 3rem' }}>
+          <div className="empty-illustration" style={{ fontSize: '3.5rem', filter: 'drop-shadow(0 8px 16px rgba(10,136,112,0.15))' }}>🗺️</div>
+          <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>Welcome to PlotVizion!</h3>
+          <p style={{ margin: '0.75rem 0 2rem 0', maxWidth: '460px', color: '#475569', fontSize: '0.95rem' }}>
+            Let's construct your real estate catalog. Upload flat maps, layouts, or building designs. Buyers can explore availability in real-time, register their interest, and shortlist units.
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button className="btn-primary" disabled={subscription.layoutLimitReached} onClick={() => navigate('/create')} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px' }}>
+              Create Plot Map
+            </button>
+            <button className="btn-secondary" disabled={subscription.layoutLimitReached} onClick={() => navigate('/create/building')} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px' }}>
+              Create Building Layout
+            </button>
           </div>
+          {subscription.layoutLimitReached && (
+            <div style={{ marginTop: '1.25rem', color: '#b45309', fontWeight: 700, fontSize: '0.9rem' }}>
+              ⚠️ Layout limit reached. Upgrade your plan to add more.
+            </div>
+          )}
         </div>
       ) : filteredLayouts.length === 0 ? (
-        <div className="empty-state-premium" style={{ minHeight: '240px' }}>
-          <h3>No matching projects found</h3>
-          <p>Try adjusting your search criteria or filter choices.</p>
+        <div className="empty-state-premium" style={{ minHeight: '260px', background: '#ffffff', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔍</div>
+          <h3 style={{ fontWeight: 700 }}>No matching projects</h3>
+          <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem' }}>Try clearing your filters or testing a different search phrase.</p>
         </div>
       ) : (
         <>
@@ -246,9 +305,8 @@ export default function Layouts() {
                     {layout.imagePath ? (
                       <img src={`${API_BASE}/uploads/${layout.imagePath}`} alt={layout.name} loading="lazy" />
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)' }}>No Image</div>
+                      <div className="project-card-placeholder">No Image</div>
                     )}
-                    <span className={`project-card-status ${layout.status === 'published' ? 'published' : 'draft'}`}>{layout.status === 'published' ? 'Published' : 'Draft'}</span>
                   </div>
                   <div className="project-card-body">
                     <div className="project-card-header">
@@ -277,42 +335,20 @@ export default function Layouts() {
                       <button 
                         className="pca-btn" 
                         onClick={() => window.open(`/v/${layout.slug}`, '_blank')}
-                        title="View public page"
                       >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                        View
+                        <ExternalLink size={16} /> View
                       </button>
-                      {layout.status === 'published' && (
-                        <button 
-                          className="pca-btn" 
-                          onClick={() => {
-                            const url = `${window.location.origin}/v/${layout.slug}`;
-                            navigator.clipboard.writeText(url);
-                            toast.success('Sharing link copied!');
-                          }}
-                          title="Copy sharing link"
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                          Share
-                        </button>
-                      )}
                       <button 
-                        className={`pca-btn ${layout.status === 'published' ? 'pca-btn--unpublish' : 'pca-btn--publish'}`}
-                        onClick={async () => {
-                          try {
-                            await updateLayout({ id: layout.id, status: layout.status === 'published' ? 'draft' : 'published' }).unwrap();
-                          } catch (err) {
-                            alert('Failed to update status');
-                          }
+                        className="pca-btn" 
+                        onClick={() => {
+                          const url = `${window.location.origin}/v/${layout.slug}?token=${layout.shareToken}`;
+                          navigator.clipboard.writeText(url);
+                          toast.success('Sharing link copied!');
                         }}
-                        title={layout.status === 'published' ? 'Unpublish' : 'Publish'}
+                        title="Copy sharing link"
+                        style={{ padding: '0.4rem' }}
                       >
-                        {layout.status === 'published' ? (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                        ) : (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                        )}
-                        {layout.status === 'published' ? 'Unpublish' : 'Publish'}
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                       </button>
                       <button 
                         className="pca-btn pca-btn--danger" 

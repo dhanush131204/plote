@@ -49,46 +49,53 @@ export default function AppLayout() {
     <div className="app-layout" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       {isImpersonating && (
         <div style={{
-          background: 'linear-gradient(90deg, #6366f1 0%, #4f46e5 100%)',
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: 'rgba(15, 23, 42, 0.92)',
+          backdropFilter: 'blur(8px)',
           color: '#fff',
-          padding: '0.75rem 2.5rem',
+          padding: '0.85rem 1.25rem',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)',
-          zIndex: 100,
+          flexDirection: 'column',
+          gap: '0.75rem',
+          borderRadius: '16px',
+          boxShadow: '0 12px 36px rgba(15, 23, 42, 0.25), 0 4px 12px rgba(15, 23, 42, 0.1)',
+          zIndex: 9999,
           fontFamily: 'var(--font-sans, system-ui, sans-serif)',
-          fontWeight: '600',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          flexShrink: 0
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          width: '280px',
+          animation: 'slideDownFade 0.3s ease-out'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '1.25rem' }}>👁️</span>
-            <span>
-              Viewing Dashboard as Builder: <strong style={{ color: '#fef08a' }}>{user?.name || user?.email}</strong>
-              {user?.companyName && ` (${user.companyName})`}
-            </span>
+          <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '1.2rem', marginTop: '2px' }}>👁️</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0 }}>
+              <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Impersonating Builder</span>
+              <strong style={{ fontSize: '0.9rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name || user?.email}</strong>
+              {user?.companyName && (
+                <span style={{ fontSize: '0.75rem', color: '#10B981', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.companyName}</span>
+              )}
+            </div>
           </div>
           <button
             onClick={handleStopImpersonating}
             style={{
-              background: 'rgba(255, 255, 255, 0.15)',
+              background: '#ef4444',
               color: '#fff',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              padding: '0.4rem 1rem',
+              border: 'none',
+              padding: '0.45rem 1rem',
               borderRadius: '8px',
               cursor: 'pointer',
               fontWeight: '700',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               transition: 'all 0.2s ease',
+              width: '100%'
             }}
             onMouseEnter={(e) => {
-              e.target.style.background = 'rgba(255, 255, 255, 0.25)';
-              e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+              e.target.style.background = '#dc2626';
             }}
             onMouseLeave={(e) => {
-              e.target.style.background = 'rgba(255, 255, 255, 0.15)';
-              e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+              e.target.style.background = '#ef4444';
             }}
           >
             Exit Impersonation

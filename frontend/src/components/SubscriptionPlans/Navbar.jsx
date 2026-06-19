@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, Lock, LogOut, LayoutDashboard } from 'lucide-react';
 
-export default function Navbar({ onOpenModal, onOpenLogin, user }) {
+export default function Navbar({ onOpenModal, onOpenLogin, onOpenRegister, user }) {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -121,7 +121,7 @@ export default function Navbar({ onOpenModal, onOpenLogin, user }) {
             </svg>
           </div>
           <span style={logoTextStyle}>
-            Plot<span style={{ color: '#10b981' }}>Vision</span>
+            Plot<span style={{ color: '#10b981' }}>Vizion</span>
           </span>
         </a>
 
@@ -161,16 +161,31 @@ export default function Navbar({ onOpenModal, onOpenLogin, user }) {
             </a>
           </div>
         ) : (
-          <button
-            onClick={onOpenLogin}
-            style={loginBtnStyle}
-            className="sp-desktop-login"
-            onMouseEnter={e => e.currentTarget.style.background = '#1e293b'}
-            onMouseLeave={e => e.currentTarget.style.background = '#0f172a'}
-          >
-            <Lock size={14} />
-            Login
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} className="sp-desktop-login">
+            <button
+              onClick={onOpenLogin}
+              style={{ ...loginBtnStyle, background: 'transparent', color: '#0f172a', border: '1.5px solid #0f172a', boxShadow: 'none' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(15,23,42,0.05)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <Lock size={14} />
+              Login
+            </button>
+            <button
+              onClick={onOpenRegister}
+              style={{
+                ...loginBtnStyle,
+                background: '#10b981',
+                color: '#fff',
+                border: 'none',
+                boxShadow: '0 4px 14px rgba(16,185,129,0.3)',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = '#059669'}
+              onMouseLeave={e => e.currentTarget.style.background = '#10b981'}
+            >
+              Sign Up
+            </button>
+          </div>
         )}
 
         {/* Mobile Hamburger */}
@@ -218,7 +233,7 @@ export default function Navbar({ onOpenModal, onOpenLogin, user }) {
               {item.name}
             </a>
           ))}
-          <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '12px', paddingTop: '16px' }}>
+          <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '12px', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {user ? (
               <a
                 href="/dashboard"
@@ -228,13 +243,21 @@ export default function Navbar({ onOpenModal, onOpenLogin, user }) {
                 Go to Dashboard
               </a>
             ) : (
-              <button
-                onClick={() => { setIsOpen(false); onOpenLogin(); }}
-                style={{ ...loginBtnStyle, width: '100%', justifyContent: 'center', padding: '12px', fontSize: '1rem' }}
-              >
-                <Lock size={16} />
-                Login
-              </button>
+              <>
+                <button
+                  onClick={() => { setIsOpen(false); onOpenLogin(); }}
+                  style={{ ...loginBtnStyle, width: '100%', justifyContent: 'center', padding: '12px', fontSize: '1rem', background: 'transparent', color: '#0f172a', border: '1.5px solid #0f172a', boxShadow: 'none' }}
+                >
+                  <Lock size={16} />
+                  Login
+                </button>
+                <button
+                  onClick={() => { setIsOpen(false); onOpenRegister(); }}
+                  style={{ ...loginBtnStyle, width: '100%', justifyContent: 'center', padding: '12px', fontSize: '1rem', background: '#10b981', color: '#fff', border: 'none', display: 'flex' }}
+                >
+                  Sign Up
+                </button>
+              </>
             )}
           </div>
         </div>

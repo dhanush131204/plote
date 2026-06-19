@@ -1,34 +1,125 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, ArrowRight, ClipboardCheck, User, Mail, Phone, Building2, MessageSquare } from 'lucide-react';
+// DEMO MODE: using demoActivatePlan — swap back to Razorpay flow before going live
+import { useDemoActivatePlanMutation /*, useCreateOrderMutation, useVerifyPaymentMutation */ } from '../../api/apiSlice';
+import { useAuth } from '../../contexts/AuthContext';
+
+function loadRazorpayScript(src) {
+  return new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 export default function InquiryModal({ isOpen, onClose, selectedPlan }) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    company: '',
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    company: user?.companyName || '',
     message: '',
   });
+
+  useEffect(() => {
+    if (isOpen && user) {
+      setFormData(prev => ({
+        ...prev,
+        name: user.name || prev.name,
+        email: user.email || prev.email,
+        phone: user.phone || prev.phone,
+        company: user.companyName || prev.company,
+      }));
+    }
+  }, [isOpen, user]);
+
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('PlotVision Inquiry Submitted:', {
-      plan: selectedPlan,
-      ...formData,
-      timestamp: new Date().toISOString(),
-    });
-    setIsSubmitted(true);
-  };
-
-  const handleReset = () => {
-    setFormData({ name: '', email: '', phone: '', company: '', message: '' });
-    setIsSubmitted(false);
-    onClose();
-  };
+  // DEMO MODE: Using direct activation — no payment required
+  // When going live, replace this with: const [createOrder] = useCreateOrderMutation();
+  //                                     const [verifyPayment] = useVerifyPaymentMutation();
+  const [demoActivatePlan] = useDemoActivatePlanMutation();
 
   const isContactSales = selectedPlan?.action === 'Contact Sales';
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (isContactSales) {
+      setIsSubmitted(true);
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // ─── DEMO MODE ────────────────────────────────────────────────────────────
+      // Directly activates the plan when the form is submitted.
+      // Comment out this block and uncomment the Razorpay block below when going live.
+      await demoActivatePlan({
+        planId: selectedPlan?.id,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        company: formData.company,
+      }).unwrap();
+      setIsSubmitted(true);
+      // ─── END DEMO MODE ────────────────────────────────────────────────────────
+
+      /* ─── RAZORPAY LIVE MODE (uncomment when going live) ──────────────────────
+      const orderData = await createOrder({ planId: selectedPlan?.id }).unwrap();
+      const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID || 'dummy_key';
+
+      const res = await loadRazorpayScript('https://checkout.razorpay.com/v1/checkout.js');
+      if (!res) {
+        alert('Razorpay SDK failed to load. Are you online?');
+        setIsProcessing(false);
+        return;
+      }
+
+      const options = {
+        key: keyId,
+        amount: orderData.order.amount,
+        currency: orderData.order.currency,
+        name: 'PlotVizion',
+        description: `Upgrade to ${selectedPlan?.name}`,
+        order_id: orderData.order.id,
+        handler: async function (response) {
+          try {
+            await verifyPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              planId: selectedPlan?.id
+            }).unwrap();
+            setIsSubmitted(true);
+          } catch (err) {
+            alert('Payment verification failed. Please contact support.');
+          }
+        },
+        prefill: {
+          name: formData.name,
+          email: formData.email,
+          contact: formData.phone,
+        },
+        theme: { color: '#10b981' }
+      };
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.open();
+      ─── END RAZORPAY LIVE MODE ─────────────────────────────────────────────── */
+
+    } catch (err) {
+      console.error(err);
+      alert(err.data?.error || 'Failed to activate plan. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -114,7 +205,7 @@ export default function InquiryModal({ isOpen, onClose, selectedPlan }) {
                       borderRadius: '999px', padding: '3px 12px',
                       fontSize: '0.75rem', fontWeight: 700,
                     }}>
-                      ✦ Selected: {selectedPlan?.name || 'PlotVision Plan'}
+                      ✦ Selected: {selectedPlan?.name || 'PlotVizion Plan'}
                     </span>
                     <h3 style={{
                       marginTop: '12px', fontSize: '1.5rem',
@@ -218,19 +309,20 @@ export default function InquiryModal({ isOpen, onClose, selectedPlan }) {
                       </button>
                       <button
                         type="submit"
+                        disabled={isProcessing}
                         style={{
                           display: 'inline-flex', alignItems: 'center', gap: '7px',
                           padding: '10px 22px', borderRadius: '10px',
-                          background: 'linear-gradient(135deg, #10b981, #059669)',
+                          background: isProcessing ? '#94a3b8' : 'linear-gradient(135deg, #10b981, #059669)',
                           border: 'none', fontSize: '0.875rem', fontWeight: 700,
-                          color: '#fff', cursor: 'pointer',
-                          boxShadow: '0 4px 14px rgba(16,185,129,0.35)',
+                          color: '#fff', cursor: isProcessing ? 'not-allowed' : 'pointer',
+                          boxShadow: isProcessing ? 'none' : '0 4px 14px rgba(16,185,129,0.35)',
                         }}
-                        onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                        onMouseEnter={e => !isProcessing && (e.currentTarget.style.opacity = '0.9')}
+                        onMouseLeave={e => !isProcessing && (e.currentTarget.style.opacity = '1')}
                       >
-                        {isContactSales ? 'Send Request' : 'Proceed to Checkout'}
-                        <ArrowRight size={15} />
+                        {isProcessing ? 'Processing...' : (isContactSales ? 'Send Request' : 'Proceed to Checkout')}
+                        {!isProcessing && <ArrowRight size={15} />}
                       </button>
                     </div>
                   </form>

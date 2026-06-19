@@ -73,7 +73,7 @@ export default function HeroSection({ onOpenModal, onOpenLogin, user }) {
                 color: '#0f172a', lineHeight: 1.1, margin: 0,
               }}
             >
-              PlotVision
+              PlotVizion
             </motion.h1>
 
             {/* Tagline */}
@@ -204,7 +204,7 @@ export default function HeroSection({ onOpenModal, onOpenLogin, user }) {
                   <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#f43f5e' }} />
                   <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#f59e0b' }} />
                   <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#10b981' }} />
-                  <span style={{ marginLeft: 8, fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8' }}>PlotVision Workspace</span>
+                  <span style={{ marginLeft: 8, fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8' }}>PlotVizion Workspace</span>
                 </div>
                 <span style={{
                   borderRadius: '999px', background: 'rgba(16,185,129,0.1)', padding: '2px 8px',
@@ -218,10 +218,11 @@ export default function HeroSection({ onOpenModal, onOpenLogin, user }) {
               <div style={{ position: 'relative', flex: 1, padding: '24px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', width: '100%', maxWidth: '320px' }}>
                   {/* Block A */}
-                  <motion.div whileHover={{ scale: 1.05 }} style={{
+                  <motion.div whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(52, 211, 153, 0.4)' }} style={{
                     gridColumn: 'span 2', height: '96px', borderRadius: '12px',
                     border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)',
                     padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer',
+                    transition: 'box-shadow 0.2s ease',
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <Layout size={18} color="#34d399" />
@@ -234,53 +235,56 @@ export default function HeroSection({ onOpenModal, onOpenLogin, user }) {
                   </motion.div>
 
                   {/* Block B */}
-                  <motion.div whileHover={{ scale: 1.05 }} style={{
+                  <motion.div whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(245, 158, 11, 0.4)' }} style={{
                     gridColumn: 'span 1', height: '96px', borderRadius: '12px',
-                    border: '1px solid #1e293b', background: 'rgba(15,23,42,0.5)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)', background: 'rgba(245, 158, 11, 0.08)',
                     padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer',
+                    transition: 'box-shadow 0.2s ease',
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <Users size={18} color="#94a3b8" />
-                      <span style={{ fontSize: 10, fontWeight: 700, color: '#475569' }}>B-04</span>
+                      <Users size={18} color="#f59e0b" />
+                      <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b' }}>B-04</span>
                     </div>
                     <div>
-                      <p style={{ fontSize: 10, color: '#64748b', fontWeight: 500, margin: 0 }}>Reserved</p>
-                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#cbd5e1', margin: 0 }}>50 Views</p>
+                      <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, margin: 0 }}>Plot B-04</p>
+                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b', margin: 0 }}>Booked</p>
                     </div>
                   </motion.div>
 
                   {/* Block C */}
-                  <motion.div whileHover={{ scale: 1.05 }} style={{
+                  <motion.div whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(52, 211, 153, 0.4)' }} style={{
                     gridColumn: 'span 1', height: '112px', borderRadius: '12px',
-                    border: '1px solid #1e293b', background: 'rgba(15,23,42,0.5)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.08)',
                     padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer',
+                    transition: 'box-shadow 0.2s ease',
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <Shield size={18} color="#94a3b8" />
-                      <span style={{ fontSize: 10, fontWeight: 700, color: '#475569' }}>C-09</span>
+                      <Shield size={18} color="#34d399" />
+                      <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b' }}>C-09</span>
                     </div>
                     <div>
-                      <p style={{ fontSize: 10, color: '#64748b', fontWeight: 500, margin: 0 }}>Available</p>
-                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#cbd5e1', margin: 0 }}>Basic</p>
+                      <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, margin: 0 }}>Plot C-09</p>
+                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#34d399', margin: 0 }}>Available</p>
                     </div>
                   </motion.div>
 
                   {/* Block D */}
-                  <motion.div whileHover={{ scale: 1.05 }} style={{
+                  <motion.div whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(244, 63, 94, 0.4)' }} style={{
                     gridColumn: 'span 2', height: '112px', borderRadius: '12px',
-                    border: '1px solid rgba(16,185,129,0.2)', background: 'rgba(16,185,129,0.05)',
+                    border: '1px solid rgba(244, 63, 94, 0.3)', background: 'rgba(244, 63, 94, 0.08)',
                     padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer',
+                    transition: 'box-shadow 0.2s ease',
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div style={{ display: 'flex' }}>
                         <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#334155', border: '2px solid #020617' }} />
-                        <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#10b981', border: '2px solid #020617', marginLeft: -6 }} />
+                        <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#f43f5e', border: '2px solid #020617', marginLeft: -6 }} />
                       </div>
                       <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b' }}>D-21</span>
                     </div>
                     <div>
-                      <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, margin: 0 }}>Buying Intent</p>
-                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#34d399', margin: 0 }}>Advanced Analytics</p>
+                      <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, margin: 0 }}>Unit D-21</p>
+                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f43f5e', margin: 0 }}>Sold Out</p>
                     </div>
                   </motion.div>
                 </div>
