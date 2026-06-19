@@ -27,16 +27,19 @@ model User {
   projectsDelivered   Int?
   website             String?
   about               String?
-  facebook            String?
-  instagram           String?
-  linkedin            String?
-  youtube             String?
   documents           String?
   status              String   @default("active")
   autoWebhookOnSubmit Int      @default(0)
   createdAt           String?
   layouts             Layout[]
-
+  plan                String   @default("FREE")
+  planStatus          String   @default("ACTIVE")
+  planActivatedAt     DateTime?
+  planExpiresAt       DateTime?
+  maxLayouts          Int?
+  maxViews            Int?
+  featuresEnabled     String?
+  payments            Payment[]
   @@map("users")
 }
 
@@ -54,6 +57,8 @@ model Layout {
   building       String?
   status         String          @default("draft")
   createdAt      String?
+  viewCount      Int             @default(0)
+  shareToken     String?         @unique
   activityEvents ActivityEvent[]
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   leads          Lead[]
@@ -97,4 +102,27 @@ model ActivityEvent {
   @@index([sessionId], map: "idx_activity_session")
   @@index([layoutId, createdAt], map: "idx_activity_layout_created")
   @@map("activity_events")
+}
+
+model GlobalSetting {
+  id        Int     @id @default(autoincrement())
+  key       String  @unique
+  value     String
+  createdAt String?
+  @@map("global_settings")
+}
+
+model Payment {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  amount        Float
+  currency      String   @default("INR")
+  status        String   @default("pending")
+  paymentMethod String?
+  gatewayId     String?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId], map: "idx_payments_userId")
+  @@map("payments")
 }

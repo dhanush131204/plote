@@ -137,6 +137,7 @@ db.exec(`
     plots TEXT,
     phaseInfo TEXT,
     webhookUrl TEXT,
+    shareToken TEXT UNIQUE,
     createdAt TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (userId) REFERENCES users(id)
   );

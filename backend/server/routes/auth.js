@@ -21,7 +21,7 @@ function userPublicRow(row) {
 
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const userRow = db.prepare('SELECT id, email, role, autoWebhookOnSubmit, name, companyName, logo, phone, alternatePhone, address, city, state, country, gst, rera, website, about, facebook, instagram, linkedin, youtube, documents, status FROM users WHERE id = ?').get(req.userId)
+    const userRow = db.prepare('SELECT id, email, role, autoWebhookOnSubmit, name, companyName, logo, phone, alternatePhone, address, city, state, country, gst, rera, website, about, documents, status FROM users WHERE id = ?').get(req.userId)
     if (!userRow) return res.status(401).json({ error: 'Unauthorized' })
     if (userRow.status === 'disabled') {
       return res.status(403).json({ error: 'Your account has been disabled. Please contact the super admin.' })
@@ -40,7 +40,7 @@ router.put('/me', authMiddleware, async (req, res) => {
   try {
     const {
       name, companyName, phone, alternatePhone, address, city, state, country,
-      gst, rera, experience, projectsDelivered, website, about, facebook, instagram, linkedin, youtube, documents
+      gst, rera, experience, projectsDelivered, website, about, documents
     } = req.body
     
     const updated = await prisma.user.update({
@@ -60,10 +60,6 @@ router.put('/me', authMiddleware, async (req, res) => {
         projectsDelivered: projectsDelivered ? parseInt(projectsDelivered, 10) : null,
         website: website || null,
         about: about || null,
-        facebook: facebook || null,
-        instagram: instagram || null,
-        linkedin: linkedin || null,
-        youtube: youtube || null,
         documents: documents || null,
       }
     })

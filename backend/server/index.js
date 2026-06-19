@@ -59,6 +59,15 @@ app.use('/api/layouts', layoutsRoutes)
 app.use('/api/leads', leadsRoutes)
 app.use('/api/activity', activityRoutes)
 app.use('/api/admin', adminRoutes)
+const subscriptionRoutes = require('./routes/subscription')
+app.use('/api/subscription', subscriptionRoutes)
+
+app.use('/api', (req, res) => {
+  res.status(404).json({
+    error: 'API route not found',
+    path: req.originalUrl,
+  })
+})
 
 app.use('/uploads', express.static(path.join(projectRoot, 'uploads')))
 

@@ -5,8 +5,10 @@ const fs = require('fs')
 const db = require('../db')
 const prisma = require('../prisma')
 const { parseLayout } = require('../utils/layoutParse')
-const { authMiddleware } = require('../middleware/auth')
+const { authMiddleware, JWT_SECRET } = require('../middleware/auth')
+const jwt = require('jsonwebtoken')
 const { requireAdmin } = require('../middleware/admin')
+const { PLAN_LIMITS } = require('../config/subscriptionConfig')
 
 const router = express.Router()
 const uploadDir = path.join(__dirname, '..', '..', 'uploads')
@@ -183,10 +185,35 @@ function slugify(str) {
     .replace(/^-|-$/g, '') || 'layout'
 }
 
+async function checkLayoutLimit(userId) {
+  const user = await prisma.user.findUnique({
+    where: { id: Number(userId) },
+    select: { plan: true },
+  })
+  if (!user) {
+    return { allowed: false, error: 'User not found' }
+  }
+
+  const limits = PLAN_LIMITS[user.plan || 'FREE'] || PLAN_LIMITS.FREE
+  if (limits.layouts === Infinity) {
+    return { allowed: true }
+  }
+
+  const currentCount = await prisma.layout.count({ where: { userId: Number(userId) } })
+  if (currentCount >= limits.layouts) {
+    return {
+      allowed: false,
+      error: 'Layout limit reached. Upgrade your plan.',
+    }
+  }
+
+  return { allowed: true }
+}
+
 router.get('/by-slug/:slug', (req, res) => {
   try {
     const row = db.prepare(`
-      SELECT l.id, l.userId, l.name, l.slug, l.imagePath, l.overlayConfig, l.plots, l.phaseInfo, l.webhookUrl, l.layoutKind, l.building, l.status,
+      SELECT l.id, l.userId, l.name, l.slug, l.shareToken, l.imagePath, l.overlayConfig, l.plots, l.phaseInfo, l.webhookUrl, l.layoutKind, l.building, l.status,
              u.companyName, u.name as builderName, u.logo as logoPath, u.rera, u.experience, u.projectsDelivered, u.phone as builderPhone, u.alternatePhone as builderAlternatePhone
       FROM layouts l
       LEFT JOIN users u ON l.userId = u.id
@@ -194,6 +221,31 @@ router.get('/by-slug/:slug', (req, res) => {
     `).get(req.params.slug)
     
     if (!row) return res.status(404).json({ error: 'Layout not found' })
+
+    let isOwner = false;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const jwtToken = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(jwtToken, JWT_SECRET);
+        console.log('[DEBUG] decoded.userId:', decoded.userId, 'type:', typeof decoded.userId, 'row.userId:', row.userId, 'type:', typeof row.userId);
+        if (String(decoded.userId) === String(row.userId)) {
+          isOwner = true;
+        }
+      } catch (err) {
+        console.log('[DEBUG] JWT Verify error:', err.message);
+      }
+    } else {
+      console.log('[DEBUG] No authHeader found in request');
+    }
+
+    if (!isOwner) {
+      const token = req.query.token;
+      console.log('[DEBUG] Not owner. Provided token:', token, 'Expected:', row.shareToken);
+      if (row.shareToken && row.shareToken !== token) {
+        return res.status(403).json({ error: 'Access denied. Invalid or missing token.' })
+      }
+    }
     
     const parsed = parseLayout(row)
     parsed.owner = {
@@ -235,17 +287,14 @@ router.get('/', async (req, res) => {
       where: { id: Number(req.userId) },
       select: { role: true },
     })
-    const isSuperAdmin = user?.role === 'super_admin';
-    let rows;
-    if (isSuperAdmin) {
-      rows = db.prepare(
-        'SELECT l.id, l.name, l.slug, l.imagePath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName, u.role as builderRole FROM layouts l LEFT JOIN users u ON l.userId = u.id ORDER BY l.createdAt DESC'
-      ).all();
-    } else {
-      rows = db.prepare(
-        'SELECT l.id, l.name, l.slug, l.imagePath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName, u.role as builderRole FROM layouts l LEFT JOIN users u ON l.userId = u.id WHERE l.userId = ? ORDER BY l.createdAt DESC'
+    const isAdmin = user?.role === 'super_admin';
+    const rows = isAdmin 
+      ? db.prepare(
+        'SELECT l.id, l.name, l.slug, l.shareToken, l.imagePath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName, u.role as builderRole FROM layouts l LEFT JOIN users u ON l.userId = u.id ORDER BY l.createdAt DESC'
+      ).all()
+      : db.prepare(
+        'SELECT l.id, l.name, l.slug, l.shareToken, l.imagePath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName, u.role as builderRole FROM layouts l LEFT JOIN users u ON l.userId = u.id WHERE l.userId = ? ORDER BY l.createdAt DESC'
       ).all(req.userId);
-    }
 
     const layouts = rows.map((row) => {
       const parsed = {
@@ -262,6 +311,7 @@ router.get('/', async (req, res) => {
         id: row.id,
         name: row.name,
         slug: row.slug,
+        shareToken: row.shareToken,
         imagePath: cardImagePath,
         layoutKind: parsed.layoutKind,
         plots: parsed.plots,
@@ -303,26 +353,26 @@ function postLayoutHandler(req, res) {
     const overlayDefault =
       layoutKind === 'building' ? JSON.stringify({ byFloor: {}, facadeByFloor: {} }) : '{}'
 
-    let imagePath = null
+    const shareToken = crypto.randomBytes(4).toString('hex')
     if (req.file) {
       const stmt = db.prepare(
-        'INSERT INTO layouts (userId, name, slug, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO layouts (userId, name, slug, shareToken, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       )
-      stmt.run(req.userId, layoutName, slug, '{}', '[]', '{}', null, 'plot', null, 'draft', new Date().toISOString())
+      stmt.run(req.userId, layoutName, slug, shareToken, '{}', '[]', '{}', null, 'plot', null, 'draft', new Date().toISOString())
       const layout = db.prepare('SELECT id FROM layouts WHERE id = last_insert_rowid()').get()
       const finalDir = path.join(uploadDir, String(layout.id))
       if (!fs.existsSync(finalDir)) fs.mkdirSync(finalDir, { recursive: true })
       const destPath = path.join(finalDir, 'plot.png')
       fs.renameSync(req.file.path, destPath)
-      imagePath = `${layout.id}/plot.png`
+      const imagePath = `${layout.id}/plot.png`
       db.prepare('UPDATE layouts SET imagePath = ? WHERE id = ?').run(imagePath, layout.id)
       const full = db.prepare('SELECT * FROM layouts WHERE id = ?').get(layout.id)
       return res.status(201).json(parseLayout(full))
     }
     const stmt = db.prepare(
-      'INSERT INTO layouts (userId, name, slug, imagePath, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO layouts (userId, name, slug, shareToken, imagePath, overlayConfig, plots, phaseInfo, webhookUrl, layoutKind, building, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
-    stmt.run(req.userId, layoutName, slug, null, overlayDefault, '[]', '{}', null, layoutKind, buildingJson, 'draft', new Date().toISOString())
+    stmt.run(req.userId, layoutName, slug, shareToken, null, overlayDefault, '[]', '{}', null, layoutKind, buildingJson, 'draft', new Date().toISOString())
     const layout = db.prepare('SELECT * FROM layouts WHERE id = last_insert_rowid()').get()
     res.status(201).json(parseLayout(layout))
   } catch (err) {
@@ -332,15 +382,20 @@ function postLayoutHandler(req, res) {
 
 router.post(
   '/',
-  requireAdmin,
-  (req, res, next) => {
+  requireAdmin, (req, res, next) => {
     if (req.is('multipart/form-data')) {
       upload.single('image')(req, res, next)
     } else {
       next()
     }
   },
-  postLayoutHandler
+  async (req, res) => {
+    const limitCheck = await checkLayoutLimit(req.userId)
+    if (!limitCheck.allowed) {
+      return res.status(403).json({ error: limitCheck.error })
+    }
+    return postLayoutHandler(req, res)
+  }
 )
 
 router.post('/:id/convert-to-building', requireAdmin, async (req, res) => {
@@ -385,23 +440,59 @@ router.put('/:id', requireAdmin, async (req, res) => {
     let buildingVal = layout.building
     if (building !== undefined) {
       if (layoutKindVal === 'building') {
+        let parsed = null
+        try {
+          parsed = typeof building === 'string' ? JSON.parse(building) : building
+        } catch (e) {
+          return res.status(400).json({ error: 'Invalid JSON format in building layout configuration data' })
+        }
+        if (!parsed || typeof parsed !== 'object') {
+          return res.status(400).json({ error: 'Building layout config must be a JSON object structure' })
+        }
         buildingVal = parseBuildingInput(building) || defaultBuildingJson()
       } else {
         buildingVal = null
       }
     }
 
-    const overlayConfigVal = overlayConfig !== undefined 
-      ? (typeof overlayConfig === 'object' ? JSON.stringify(overlayConfig) : overlayConfig)
-      : layout.overlayConfig
+    let overlayConfigVal = layout.overlayConfig
+    if (overlayConfig !== undefined) {
+      try {
+        const parsed = typeof overlayConfig === 'string' ? JSON.parse(overlayConfig) : overlayConfig
+        if (parsed && typeof parsed !== 'object') {
+          return res.status(400).json({ error: 'Overlay Configuration must be a valid JSON object structure' })
+        }
+        overlayConfigVal = JSON.stringify(parsed)
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid JSON format in overlay configuration' })
+      }
+    }
 
-    const plotsVal = plots !== undefined
-      ? (typeof plots === 'object' ? JSON.stringify(plots) : plots)
-      : layout.plots
+    let plotsVal = layout.plots
+    if (plots !== undefined) {
+      try {
+        const parsed = typeof plots === 'string' ? JSON.parse(plots) : plots
+        if (!Array.isArray(parsed)) {
+          return res.status(400).json({ error: 'Plots layout data must be a valid JSON Array list structure' })
+        }
+        plotsVal = JSON.stringify(parsed)
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid JSON format in plots layout data' })
+      }
+    }
 
-    const phaseInfoVal = phaseInfo !== undefined
-      ? (typeof phaseInfo === 'object' ? JSON.stringify(phaseInfo) : phaseInfo)
-      : layout.phaseInfo
+    let phaseInfoVal = layout.phaseInfo
+    if (phaseInfo !== undefined) {
+      try {
+        const parsed = typeof phaseInfo === 'string' ? JSON.parse(phaseInfo) : phaseInfo
+        if (parsed && typeof parsed !== 'object') {
+          return res.status(400).json({ error: 'Phase information must be a valid JSON object structure' })
+        }
+        phaseInfoVal = JSON.stringify(parsed)
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid JSON format in phase information' })
+      }
+    }
 
     const webhookUrlVal = webhookUrl !== undefined ? webhookUrl : layout.webhookUrl
     if (webhookUrlVal && webhookUrlVal.trim() !== '' && !/^https?:\/\//i.test(webhookUrlVal)) {

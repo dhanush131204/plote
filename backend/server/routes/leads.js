@@ -4,6 +4,7 @@ const prisma = require('../prisma')
 const { sendLeadWebhook } = require('../leadWebhook')
 const { throttle } = require('../throttle')
 const { authMiddleware } = require('../middleware/auth')
+const { sendBuyerLeadNotification } = require('../utils/email')
 
 function generateTrackingId() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -28,7 +29,7 @@ const normalizeLeadDate = (value) => {
 router.get('/track/:trackingId', async (req, res) => {
   try {
     const lead = db.prepare(`
-      SELECT l.*, layouts.name AS layoutName, layouts.slug AS layoutSlug 
+      SELECT l.*, layouts.name AS layoutName, layouts.slug AS layoutSlug, layouts.shareToken AS shareToken 
       FROM leads l 
       JOIN layouts ON layouts.id = l.layoutId 
       WHERE l.trackingId = ?
@@ -49,6 +50,7 @@ router.get('/track/:trackingId', async (req, res) => {
       layoutId: lead.layoutId,
       layoutName: lead.layoutName,
       layoutSlug: lead.layoutSlug,
+      shareToken: lead.shareToken,
       plotId: lead.plotId,
       unitId: lead.unitId || null,
       unitFloor: meta.floor ?? null,
@@ -74,7 +76,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 
     const email = String(user.email || '').toLowerCase().trim()
     const rows = db.prepare(
-      `SELECT l.*, layouts.name AS layoutName, layouts.slug AS layoutSlug
+      `SELECT l.*, layouts.name AS layoutName, layouts.slug AS layoutSlug, layouts.shareToken AS shareToken
        FROM leads l
        JOIN layouts ON layouts.id = l.layoutId
        WHERE LOWER(TRIM(l.customerEmail)) = ?
@@ -94,6 +96,7 @@ router.get('/me', authMiddleware, async (req, res) => {
           layoutId: lead.layoutId,
           layoutName: lead.layoutName,
           layoutSlug: lead.layoutSlug,
+          shareToken: lead.shareToken,
           plotId: lead.plotId,
           unitId: lead.unitId || null,
           unitFloor: meta.floor ?? null,
@@ -203,6 +206,20 @@ router.post('/', postThrottle, async (req, res) => {
         console.error('Lead webhook error:', err.message)
       }
     }
+
+    // Send email notification to buyer asynchronously
+    const builder = db.prepare('SELECT name, companyName, phone FROM users WHERE id = ?').get(layout.userId)
+    sendBuyerLeadNotification({
+      to: emailTrim,
+      buyerName: customerName,
+      status: 'new',
+      trackingId: lead.trackingId,
+      layout,
+      plotId,
+      builder
+    }).catch((emailErr) => {
+      console.error('Failed to send buyer notification email on lead submission:', emailErr.message)
+    })
 
     res.status(201).json({ success: true, leadId: lead.id, trackingId: lead.trackingId })
   } catch (err) {

@@ -8,7 +8,7 @@ const db = require('../db')
 const { authMiddleware } = require('../middleware/auth')
 const { requireAdmin, requireSuperAdmin } = require('../middleware/admin')
 const { sendLeadWebhook } = require('../leadWebhook')
-const { sendBuilderWelcomeEmail } = require('../utils/email')
+const { sendBuilderWelcomeEmail, sendBuyerLeadNotification } = require('../utils/email')
 
 const router = express.Router()
 
@@ -197,6 +197,14 @@ router.get('/analytics', requireSuperAdmin, async (req, res) => {
     const totalLeads = await prisma.lead.count()
     const convertedLeads = await prisma.lead.count({ where: { status: 'sold' } })
     
+    const activeSubscriptions = await prisma.user.count({
+      where: {
+        role: 'admin',
+        planStatus: 'ACTIVE',
+        plan: { not: 'FREE' }
+      }
+    })
+
     const conversionRate = totalLeads > 0 ? ((convertedLeads / totalLeads) * 100).toFixed(2) : 0
 
     const thirtyDaysAgo = new Date()
@@ -222,7 +230,9 @@ router.get('/analytics', requireSuperAdmin, async (req, res) => {
       convertedLeads,
       conversionRate,
       recentLeads,
-      recentProjects
+      recentProjects,
+      totalBuilders: totalAdmins,
+      activeSubscriptions
     })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
@@ -319,7 +329,13 @@ router.patch('/leads/:id/status', async (req, res) => {
 
     const lead = await prisma.lead.findUnique({ 
       where: { id },
-      include: { layout: true }
+      include: {
+        layout: {
+          include: {
+            user: true
+          }
+        }
+      }
     })
     if (!lead) return res.status(404).json({ error: 'Lead not found' })
 
@@ -363,6 +379,21 @@ router.patch('/leads/:id/status', async (req, res) => {
       }
     }
 
+    // Send email notification to buyer asynchronously on status change
+    if (lead.customerEmail) {
+      sendBuyerLeadNotification({
+        to: lead.customerEmail,
+        buyerName: lead.customerName,
+        status: String(status),
+        trackingId: lead.trackingId,
+        layout: lead.layout,
+        plotId: lead.plotId,
+        builder: lead.layout.user
+      }).catch((emailErr) => {
+        console.error('Failed to send buyer notification email on status change:', emailErr.message)
+      })
+    }
+
     res.json({ success: true, lead: {
       id: updated.id,
       status: updated.status,
@@ -377,6 +408,8 @@ router.patch('/leads/:id/status', async (req, res) => {
 router.post('/leads/:id/push-webhook', async (req, res) => {
   try {
     const id = Number(req.params.id)
+    if (!id) return res.status(400).json({ error: 'Invalid id' })
+
     const user = await prisma.user.findUnique({
       where: { id: Number(req.userId) },
       select: { role: true }
@@ -487,6 +520,107 @@ router.get('/activity', async (req, res) => {
 
     res.json({ events })
   } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// --- Super Admin Subscriptions, Payments & Settings Endpoints ---
+
+router.get('/subscriptions', requireSuperAdmin, async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { role: 'admin' },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        companyName: true,
+        phone: true,
+        plan: true,
+        planStatus: true,
+        maxLayouts: true,
+        maxViews: true,
+        planExpiresAt: true,
+        createdAt: true,
+      }
+    })
+    res.json(users)
+  } catch (err) {
+    console.error('Error fetching admin subscriptions:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.post('/subscriptions/override', requireSuperAdmin, async (req, res) => {
+  try {
+    const { userId, plan, planStatus, maxLayouts, maxViews, planExpiresAt } = req.body
+    if (!userId) return res.status(400).json({ error: 'userId is required' })
+
+    const updated = await prisma.user.update({
+      where: { id: Number(userId) },
+      data: {
+        plan,
+        planStatus,
+        maxLayouts: maxLayouts !== undefined ? maxLayouts : undefined,
+        maxViews: maxViews !== undefined ? maxViews : undefined,
+        planExpiresAt: planExpiresAt !== undefined ? planExpiresAt : undefined,
+        planActivatedAt: planStatus === 'ACTIVE' ? new Date().toISOString() : undefined,
+      }
+    })
+
+    res.json({ success: true, user: updated })
+  } catch (err) {
+    console.error('Error overriding subscription:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.get('/payments', requireSuperAdmin, async (req, res) => {
+  try {
+    const payments = await prisma.payment.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            name: true,
+            companyName: true,
+            email: true,
+          }
+        }
+      }
+    })
+    res.json(payments)
+  } catch (err) {
+    console.error('Error fetching admin payments:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.get('/settings', requireSuperAdmin, async (req, res) => {
+  try {
+    const settings = await prisma.globalSetting.findMany()
+    res.json(settings)
+  } catch (err) {
+    console.error('Error fetching global settings:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.put('/settings', requireSuperAdmin, async (req, res) => {
+  try {
+    const { key, value } = req.body
+    if (!key) return res.status(400).json({ error: 'Key is required' })
+
+    const updated = await prisma.globalSetting.upsert({
+      where: { key },
+      update: { value: String(value) },
+      create: { key, value: String(value) },
+    })
+
+    res.json({ success: true, setting: updated })
+  } catch (err) {
+    console.error('Error updating global setting:', err)
     res.status(500).json({ error: 'Server error' })
   }
 })
