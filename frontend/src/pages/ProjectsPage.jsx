@@ -128,13 +128,17 @@ export default function ProjectsPage() {
         <div className="projects-grid">
           {filteredProjects.map((layout) => {
             const isBuilding = layout.layoutKind === 'building';
-            const plots = layout.plots || [];
+            let plots = layout.plots || [];
+            if (isBuilding) {
+              const validFloorIds = new Set((layout.floors || layout.building?.floors || []).map(f => String(f.id)));
+              plots = plots.filter(p => validFloorIds.has(String(p.floor)));
+            }
 
             const totalPlots = layout.totalPlots ?? plots.length;
             const availablePlots = layout.availablePlots ?? plots.filter((p) => String(p.status || '').toLowerCase() !== 'sold').length;
             const soldPlots = layout.soldPlots ?? plots.filter((p) => String(p.status || '').toLowerCase() === 'sold').length;
-            const startingPrice = layout.plots?.length > 0
-              ? Math.min(...layout.plots.map((p) => p.estimatedPrice || Infinity))
+            const startingPrice = plots.length > 0
+              ? Math.min(...plots.map((p) => p.estimatedPrice || Infinity))
               : null;
 
             const formatPrice = (num) =>

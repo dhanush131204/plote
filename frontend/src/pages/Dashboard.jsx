@@ -220,7 +220,11 @@ export default function Dashboard() {
             {/* Buyers see all projects, while admins get a "recent" overview on the dashboard */}
             {(isAdmin ? (layouts || []).slice(0, 4) : (layouts || [])).map((layout) => {
               const isBuilding = layout.layoutKind === 'building';
-              const plots = layout.plots || [];
+              let plots = layout.plots || [];
+              if (isBuilding) {
+                const validFloorIds = new Set((layout.floors || layout.building?.floors || []).map(f => String(f.id)));
+                plots = plots.filter(p => validFloorIds.has(String(p.floor)));
+              }
               
               const totalPlots = layout.totalPlots ?? plots.length;
               const availablePlots = layout.availablePlots ?? plots.filter(p => p.status?.toLowerCase() === "available").length;

@@ -162,7 +162,7 @@ export default function Layouts() {
             </div>
             <div style={{ display: 'grid', gap: '0.35rem', minWidth: '240px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', fontWeight: 700 }}>
-                <span>Layouts:</span>
+                <span>Plot Maps:</span>
                 <span>{subscription.layoutsUsed} / {formatPlanLimit(subscription.layoutsAllowed)} Used</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', fontWeight: 700 }}>
@@ -173,7 +173,7 @@ export default function Layouts() {
           </div>
           {subscription.layoutLimitReached && (
             <div style={{ marginTop: '0.85rem', color: '#b45309', fontWeight: 700 }}>
-              Layout limit reached. Upgrade your plan.
+              Plot Map limit reached. Upgrade your plan.
             </div>
           )}
         </section>
@@ -294,7 +294,11 @@ export default function Layouts() {
           <div className="projects-grid">
             {paginatedLayouts.map((layout) => {
               const isBuilding = layout.layoutKind === 'building';
-              const plots = layout.plots || [];
+              let plots = layout.plots || [];
+              if (isBuilding) {
+                const validFloorIds = new Set((layout.floors || layout.building?.floors || []).map(f => String(f.id)));
+                plots = plots.filter(p => validFloorIds.has(String(p.floor)));
+              }
               
               const totalPlots = layout.totalPlots ?? plots.length;
               const availablePlots = layout.availablePlots ?? plots.filter(p => p.status?.toLowerCase() === "available").length;

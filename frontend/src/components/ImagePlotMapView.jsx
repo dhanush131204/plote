@@ -325,7 +325,7 @@ export default function ImagePlotMapView({
           minScale={0.5}
           maxScale={3}
           limitToBounds={false}
-          centerOnInit={!hasSavedState}
+          centerOnInit={false}
           onTransformed={handleTransform}
           wheel={{ step: 0.12 }}
           panning={{ disabled: false, wheelPanning: true }}

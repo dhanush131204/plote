@@ -11,6 +11,7 @@ import {
 import ImagePlotMapView from '../components/ImagePlotMapView'
 import CalibratePlotSidebar from '../components/CalibratePlotSidebar'
 import PlotEditPopup from '../components/PlotEditPopup'
+import Building3DViewer from '../components/Building3DViewer'
 import {
   defaultBuilding,
   defaultFloorConfigurations,
@@ -64,12 +65,14 @@ export default function BuildingLayoutBuilder() {
   const [selectedFloorId, setSelectedFloorId] = useState(null)
   const [facadeCalibrateKey, setFacadeCalibrateKey] = useState(null)
   const [error, setError] = useState('')
+  const [errorModalOpen, setErrorModalOpen] = useState(false)
   const [addConfigCustom, setAddConfigCustom] = useState('')
   const [editFloor, setEditFloor] = useState(null)
   const [floorTab, setFloorTab] = useState('configs') // 'configs' | 'calibrate'
   const [unitGuideMessage, setUnitGuideMessage] = useState('')
   const [uploadingMedia, setUploadingMedia] = useState(null) // { configId, kind }
   const [editUnitNamePlot, setEditUnitNamePlot] = useState(null)
+
 
   useEffect(() => {
     if (!id) {
@@ -235,7 +238,8 @@ export default function BuildingLayoutBuilder() {
 
   const floorImageSrc = currentFloor?.imagePath ? `${API_BASE}/uploads/${currentFloor.imagePath}` : null
 
-  const facadeImageSrc = building.facadeImagePath ? `${API_BASE}/uploads/${building.facadeImagePath}` : null
+  const [imgVersion, setImgVersion] = useState(Date.now())
+  const facadeImageSrc = building.facadeImagePath ? `${API_BASE}/uploads/${building.facadeImagePath}?v=${imgVersion}` : null
 
   const facadePlots = useMemo(() => {
     const sorted = [...(building.floors || [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
@@ -275,18 +279,31 @@ export default function BuildingLayoutBuilder() {
     setFacadeCalibrateKey(fid)
   }
 
-  const handleFacadeUpload = async (e) => {
+  const handleFacadeUpload = async (e, target) => {
     const file = e.target.files?.[0]
     if (!file) return
     setError('')
     try {
       const fd = new FormData()
       fd.append('image', file)
-      const res = await uploadFacadeImage({ id, formData: fd }).unwrap()
-      if (res.building) setBuilding(res.building)
-      setStep(1)
+      if (target) fd.append('target', target)
+      
+      const uploadPromise = uploadFacadeImage({ id, formData: fd }).unwrap()
+      
+      toast.promise(uploadPromise, {
+        loading: target === '3d' ? 'Uploading 3D model...' : 'Uploading facade image...',
+        success: target === '3d' ? '3D view uploaded!' : 'Facade image uploaded!',
+        error: 'Upload failed'
+      })
+      
+      const res = await uploadPromise
+      if (res.building) {
+        setBuilding(res.building)
+        setImgVersion(Date.now())
+      }
     } catch (err) {
       setError(err.data?.error || err.message || 'Upload failed')
+      setErrorModalOpen(true)
     }
     e.target.value = ''
   }
@@ -664,7 +681,20 @@ export default function BuildingLayoutBuilder() {
         </nav>
       </header>
       <main className="builder-main">
-        {error && <div className="dashboard-error">{error}</div>}
+        {errorModalOpen && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)' }}>
+            <div style={{ background: '#fff', padding: '2rem', borderRadius: '16px', maxWidth: '400px', width: '90%', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', color: '#ef4444' }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>Error</h3>
+              </div>
+              <p style={{ margin: '0 0 1.5rem', color: '#475569', lineHeight: 1.5 }}>{error}</p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={() => { setErrorModalOpen(false); setError(''); }} style={{ background: '#0f172a', color: '#fff', border: 'none', padding: '0.6rem 1.5rem', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {step === 0 && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', background: 'var(--color-bg)' }}>
@@ -753,7 +783,7 @@ export default function BuildingLayoutBuilder() {
                     <h4 style={{ margin: '0 0 0.5rem', fontWeight: 700, color: 'var(--color-text)' }}>Upload facade image</h4>
                     <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1.5rem', lineHeight: 1.5 }}>Choose a high-quality vertical building render/photo. Buyers will click this to select floors.</p>
                     <label className="builder-upload-dashed" style={{ padding: '2rem' }}>
-                      <input type="file" accept="image/*" onChange={handleFacadeUpload} />
+                      <input type="file" accept="image/*" onChange={(e) => handleFacadeUpload(e, 'facade')} />
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginBottom: '0.5rem' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                       Choose facade image file
                     </label>
@@ -800,9 +830,9 @@ export default function BuildingLayoutBuilder() {
                       </div>
                     )}
                   </div>
-                  <div style={{ background: '#fff', borderTop: '1px solid #e2e8f0', padding: '0.5rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                  <div style={{ background: '#fff', borderTop: '1px solid #e2e8f0', padding: '0.5rem 1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
                     <label style={{ cursor: 'pointer', fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <input type="file" accept="image/*" onChange={handleFacadeUpload} style={{ display: 'none' }} />
+                      <input type="file" accept="image/*" onChange={(e) => handleFacadeUpload(e, 'facade')} style={{ display: 'none' }} />
                       🔄 Replace facade image
                     </label>
                   </div>
@@ -1274,6 +1304,25 @@ export default function BuildingLayoutBuilder() {
                         <input type="text" value={phaseInfo.companyName ?? ''} onChange={(e) => setPhaseInfo((p) => ({ ...p, companyName: e.target.value }))} placeholder="e.g. LUXURY RESIDENCES CORP" style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
                       </div>
                     </div>
+                  </div>
+
+                  {/* 3D Model Upload Card */}
+                  <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <h4 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>✨ Premium 3D View (Optional)</span>
+                    </h4>
+                    <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                      Elevate your project with an interactive 3D model. If uploaded, buyers can toggle between your 2D photo and this 3D view.
+                    </p>
+                    <label style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: fetchedLayout?.model3dPath ? '#ecfdf5' : '#f8fafc', padding: '0.75rem 1.25rem', borderRadius: '8px', border: `1px dashed ${fetchedLayout?.model3dPath ? '#10b981' : '#cbd5e1'}`, transition: 'all 0.2s', width: '100%' }}>
+                      <input type="file" accept=".glb,.gltf,image/*" onChange={(e) => handleFacadeUpload(e, '3d')} style={{ display: 'none' }} />
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: fetchedLayout?.model3dPath ? '#10b981' : '#475569' }}>
+                          {fetchedLayout?.model3dPath ? '✅ 3D Model uploaded successfully (Click to replace)' : '🚀 Click to upload .glb file'}
+                        </span>
+                        {fetchedLayout?.model3dPath && <span style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.2rem' }}>Buyers will see the 2D / 3D toggle buttons.</span>}
+                      </div>
+                    </label>
                   </div>
 
                   {/* Webhook Card */}

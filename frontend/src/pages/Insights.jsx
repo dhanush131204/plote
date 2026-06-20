@@ -19,14 +19,18 @@ export default function Insights() {
     return layouts.map((layout) => {
       const projectEvents = events.filter((event) => String(event.layoutId) === String(layout.id))
       const projectLeads = leads.filter((lead) => String(lead.layoutId) === String(layout.id))
-      const plots = layout.plots || []
+      let plots = layout.plots || []
+      if (layout.layoutKind === 'building') {
+        const validFloorIds = new Set((layout.floors || layout.building?.floors || []).map(f => String(f.id)))
+        plots = plots.filter(p => validFloorIds.has(String(p.floor)))
+      }
       return {
         id: layout.id,
         name: layout.name,
         slug: layout.slug,
         type: layout.layoutKind === 'building' ? 'Building' : 'Plot Map',
         views: projectEvents.filter((event) => event.eventType === 'page_view').length,
-        selections: projectEvents.filter((event) => event.eventType === 'plot_select').length,
+        selections: projectEvents.filter((event) => event.eventType === 'plot_select' || event.eventType === 'unit_select').length,
         leads: projectLeads.length,
         available: plots.filter((plot) => (plot.status || 'Available').toLowerCase() === 'available').length,
       }
@@ -86,7 +90,6 @@ export default function Insights() {
                 <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Project</th>
                 <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Type</th>
                 <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Views</th>
-                <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Selections</th>
                 <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Leads</th>
                 <th style={{padding: '1rem', textAlign: 'left', fontWeight: '600', color: 'var(--color-text-muted)'}}>Available</th>
               </tr>
@@ -97,14 +100,13 @@ export default function Insights() {
                   <td style={{padding: '1rem', fontWeight: '600'}}>{item.name}</td>
                   <td style={{padding: '1rem'}}><span className="project-badge">{item.type}</span></td>
                   <td style={{padding: '1rem'}}>{item.views}</td>
-                  <td style={{padding: '1rem'}}>{item.selections}</td>
                   <td style={{padding: '1rem', fontWeight: '600', color: 'var(--color-accent)'}}>{item.leads}</td>
                   <td style={{padding: '1rem', fontWeight: '600', color: 'var(--color-available)'}}>{item.available}</td>
                 </tr>
               ))}
               {projectStats.length === 0 && (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>No projects available.</td>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>No projects available.</td>
                 </tr>
               )}
             </tbody>
