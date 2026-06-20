@@ -49,6 +49,7 @@ model Layout {
   name           String
   slug           String          @unique
   imagePath      String?
+  model3dPath    String?
   overlayConfig  String?
   plots          String?
   phaseInfo      String?

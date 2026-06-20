@@ -4,7 +4,7 @@ const { throttle } = require('../throttle')
 
 const router = express.Router()
 
-const ALLOWED_EVENTS = new Set(['page_view', 'plot_select', 'filter_change'])
+const ALLOWED_EVENTS = new Set(['page_view', 'plot_select', 'unit_select', 'filter_change'])
 
 const postThrottle = throttle({ windowMs: 60_000, max: 120 })
 
@@ -37,6 +37,10 @@ router.post('/', postThrottle, (req, res) => {
     db.prepare(
       'INSERT INTO activity_events (layoutId, sessionId, eventType, payload, userAgent) VALUES (?, ?, ?, ?, ?)'
     ).run(lid, sessionId, eventType, payloadStr, ua || null)
+
+    if (eventType === 'page_view') {
+      db.prepare('UPDATE layouts SET viewCount = viewCount + 1 WHERE id = ?').run(lid)
+    }
 
     res.status(201).json({ success: true })
   } catch (err) {

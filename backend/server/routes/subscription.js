@@ -69,17 +69,19 @@ router.get('/usage', authMiddleware, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const userId = user.id;
-    const totalViews = await prisma.layout.aggregate({
-      where: { userId },
-      _sum: { viewCount: true },
+    const viewsUsed = await prisma.activityEvent.count({
+      where: {
+        eventType: 'page_view',
+        layout: { userId }
+      }
     });
-    const layoutCount = await prisma.layout.count({ where: { userId } });
+    const layoutCount = await prisma.layout.count({ where: { userId, layoutKind: { not: 'building' } } });
     const limits = PLAN_LIMITS[user.plan] || PLAN_LIMITS.FREE;
 
     res.json({
       layoutsUsed: layoutCount,
       layoutsAllowed: user.maxLayouts !== null ? user.maxLayouts : (limits.layouts === Infinity ? null : limits.layouts),
-      viewsUsed: totalViews._sum.viewCount || 0,
+      viewsUsed: viewsUsed,
       viewsAllowed: user.maxViews !== null ? user.maxViews : (limits.viewsPerLayout === Infinity ? null : limits.viewsPerLayout),
       plan: user.plan || 'FREE',
     });
@@ -255,9 +257,9 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
     const userId = user.id;
     const limits = PLAN_LIMITS[user.plan] || PLAN_LIMITS.FREE;
 
-    const layoutCount = db.prepare('SELECT COUNT(*) as count FROM layouts WHERE userId = ?').get(userId).count;
+    const layoutCount = db.prepare('SELECT COUNT(*) as count FROM layouts WHERE userId = ? AND (layoutKind != \'building\' OR layoutKind IS NULL)').get(userId).count;
     const buildingCount = db.prepare("SELECT COUNT(*) as count FROM layouts WHERE userId = ? AND layoutKind = 'building'").get(userId).count;
-    const totalViews = db.prepare('SELECT COALESCE(SUM(viewCount), 0) as total FROM layouts WHERE userId = ?').get(userId).total;
+    const totalViews = db.prepare("SELECT COUNT(*) as total FROM activity_events ae JOIN layouts l ON ae.layoutId = l.id WHERE l.userId = ? AND ae.eventType = 'page_view'").get(userId).total;
 
     res.json(
       dashboardPayload(

@@ -2,6 +2,7 @@ const express = require('express')
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
+const crypto = require('crypto')
 const db = require('../db')
 const prisma = require('../prisma')
 const { parseLayout } = require('../utils/layoutParse')
@@ -63,12 +64,18 @@ const facadeUpload = multer({
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
       cb(null, dir)
     },
-    filename: (req, file, cb) => cb(null, 'facade.png'),
+    filename: (req, file, cb) => {
+      if (file.originalname.match(/\.(glb|gltf)$/i)) {
+        cb(null, 'facade.glb')
+      } else {
+        cb(null, 'facade.png')
+      }
+    },
   }),
-  limits: { fileSize: 12 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (/^image\/(png|jpeg|jpg|webp)$/.test(file.mimetype)) cb(null, true)
-    else cb(new Error('Invalid image type'))
+    if (/^image\/(png|jpeg|jpg|webp)$/.test(file.mimetype) || file.originalname.match(/\.(glb|gltf)$/i)) cb(null, true)
+    else cb(new Error('Invalid file type'))
   },
 })
 
@@ -213,7 +220,7 @@ async function checkLayoutLimit(userId) {
 router.get('/by-slug/:slug', (req, res) => {
   try {
     const row = db.prepare(`
-      SELECT l.id, l.userId, l.name, l.slug, l.shareToken, l.imagePath, l.overlayConfig, l.plots, l.phaseInfo, l.webhookUrl, l.layoutKind, l.building, l.status,
+      SELECT l.id, l.userId, l.name, l.slug, l.shareToken, l.imagePath, l.model3dPath, l.overlayConfig, l.plots, l.phaseInfo, l.webhookUrl, l.layoutKind, l.building, l.status,
              u.companyName, u.name as builderName, u.logo as logoPath, u.rera, u.experience, u.projectsDelivered, u.phone as builderPhone, u.alternatePhone as builderAlternatePhone
       FROM layouts l
       LEFT JOIN users u ON l.userId = u.id
@@ -290,10 +297,10 @@ router.get('/', async (req, res) => {
     const isAdmin = user?.role === 'super_admin';
     const rows = isAdmin 
       ? db.prepare(
-        'SELECT l.id, l.name, l.slug, l.shareToken, l.imagePath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName, u.role as builderRole FROM layouts l LEFT JOIN users u ON l.userId = u.id ORDER BY l.createdAt DESC'
+        'SELECT l.id, l.name, l.slug, l.shareToken, l.imagePath, l.model3dPath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName, u.role as builderRole FROM layouts l LEFT JOIN users u ON l.userId = u.id ORDER BY l.createdAt DESC'
       ).all()
       : db.prepare(
-        'SELECT l.id, l.name, l.slug, l.shareToken, l.imagePath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName, u.role as builderRole FROM layouts l LEFT JOIN users u ON l.userId = u.id WHERE l.userId = ? ORDER BY l.createdAt DESC'
+        'SELECT l.id, l.name, l.slug, l.shareToken, l.imagePath, l.model3dPath, l.layoutKind, l.building, l.plots, l.overlayConfig, l.phaseInfo, l.createdAt, l.userId, l.status, u.companyName, u.name as builderName, u.role as builderRole FROM layouts l LEFT JOIN users u ON l.userId = u.id WHERE l.userId = ? ORDER BY l.createdAt DESC'
       ).all(req.userId);
 
     const layouts = rows.map((row) => {
@@ -586,22 +593,34 @@ router.put('/:id/facade-image', requireAdmin, facadeUpload.single('image'), asyn
   try {
     const layout = await getLayoutForUser(req.params.id, req.userId)
     if (!layout) return res.status(404).json({ error: 'Layout not found' })
-    if (!req.file) return res.status(400).json({ error: 'No image file' })
+    if (!req.file) return res.status(400).json({ error: 'No file' })
     let building = {}
     try {
       building = layout.building ? JSON.parse(layout.building) : {}
     } catch {
       building = {}
     }
-    const relPath = `${layout.id}/facade.png`
-    building.facadeImagePath = relPath
-    if (!Array.isArray(building.towers) || !building.towers.length) {
-      building.towers = [{ id: 'A', label: 'Tower A' }]
+    
+    const is3DFile = req.file.originalname.match(/\.(glb|gltf)$/i) || req.file.filename.endsWith('.glb')
+    const is3DTarget = req.body.target === '3d' || is3DFile
+    
+    if (is3DTarget) {
+      const ext = req.file.originalname.split('.').pop() || 'glb'
+      const relPath = `${layout.id}/facade.${ext}`
+      db.prepare('UPDATE layouts SET model3dPath = ?, layoutKind = ? WHERE id = ?').run(relPath, 'building', layout.id)
+    } else {
+      const ext = req.file.originalname.split('.').pop() || 'png'
+      const relPath = `${layout.id}/facade.${ext}`
+      building.facadeImagePath = relPath
+      if (!Array.isArray(building.towers) || !building.towers.length) {
+        building.towers = [{ id: 'A', label: 'Tower A' }]
+      }
+      const buildingJson = parseBuildingInput(building)
+      db.prepare('UPDATE layouts SET building = ?, layoutKind = ? WHERE id = ?').run(buildingJson, 'building', layout.id)
     }
-    const buildingJson = parseBuildingInput(building)
-    db.prepare('UPDATE layouts SET building = ?, layoutKind = ? WHERE id = ?').run(buildingJson, 'building', layout.id)
+    
     const full = db.prepare('SELECT * FROM layouts WHERE id = ?').get(layout.id)
-    res.json({ imagePath: relPath, building: parseLayout(full).building })
+    res.json({ model3dPath: full.model3dPath, building: parseLayout(full).building })
   } catch (err) {
     res.status(500).json({ error: err.message || 'Server error' })
   }
